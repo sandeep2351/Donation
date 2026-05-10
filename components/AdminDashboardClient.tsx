@@ -273,6 +273,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     try {
       const body = {
         targetAmount: Number(settings.targetAmount),
+        siteName: typeof settings.siteName === 'string' ? settings.siteName : undefined,
         campaignTitle: settings.campaignTitle,
         campaignDescription: settings.campaignDescription,
         fatherName: settings.fatherName,
@@ -1047,7 +1048,21 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                   onChange={(e) => setSettings({ ...settings, targetAmount: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="md:col-span-2 lg:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1.5">Site name (navigation)</label>
+                <input
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={String(settings.siteName ?? '')}
+                  onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
+                  placeholder="Family Fundraiser"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Shown as the main title in the top bar. The line below it is always{' '}
+                  <span className="whitespace-nowrap">A family&apos;s hope</span>. The campaign title field is the
+                  large headline on the home page.
+                </p>
+              </div>
+              <div className="md:col-span-2 lg:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1.5">Campaign title</label>
                 <input
                   className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"

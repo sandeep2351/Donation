@@ -6,8 +6,8 @@ import { getCampaignBranding } from '@/lib/campaign-branding'
 import './globals.css'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { title, description } = await getCampaignBranding()
-  const tabTitle = `${title} · Donate`
+  const { navTitle, description } = await getCampaignBranding()
+  const tabTitle = `${navTitle} · Donate`
   const desc =
     description ||
     'Transparent fundraising: track support and see how funds are used.'

@@ -21,6 +21,7 @@ export async function ensureApplicationDefaults(): Promise<void> {
   if (!settings) {
     settings = await CampaignSettings.create({
       targetAmount: 2_000_000,
+      siteName: 'Family Fundraiser',
       campaignTitle: "Help Save Dad's Life",
       campaignDescription:
         "Our father needs a lung transplant. Your support helps cover surgery, hospital care, and recovery.",

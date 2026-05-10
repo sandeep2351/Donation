@@ -3,6 +3,7 @@ import { CampaignSettings } from '@/lib/models';
 import { campaignSettingsSchema } from '@/lib/validations';
 import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { ZodError } from 'zod';
 
 export async function GET() {
@@ -15,7 +16,8 @@ export async function GET() {
     if (!settings) {
       await CampaignSettings.create({
         targetAmount: 2000000,
-        campaignTitle: 'Family Fundraiser',
+        siteName: 'Family Fundraiser',
+        campaignTitle: "Help Save Dad's Life",
         campaignDescription: "Supporting our father's lung transplant surgery.",
         fatherName: 'Father Name',
         fatherAge: 50,
@@ -60,6 +62,8 @@ export async function PUT(request: NextRequest) {
     }
 
     await settings.save();
+
+    revalidateTag('campaign-settings', 'default');
 
     return NextResponse.json({
       success: true,

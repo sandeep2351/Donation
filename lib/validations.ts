@@ -81,6 +81,7 @@ export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 // Campaign Settings validation
 export const campaignSettingsSchema = z.object({
   targetAmount: z.number().min(1000, 'Target amount must be at least 1000'),
+  siteName: z.string().max(120).optional(),
   campaignTitle: z.string().min(5, 'Campaign title required'),
   campaignDescription: z.string().min(20, 'Campaign description required'),
   fatherName: z.string().min(2, 'Father name required'),

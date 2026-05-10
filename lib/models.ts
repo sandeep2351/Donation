@@ -163,6 +163,8 @@ const campaignUpdateSchema = new Schema<ICampaignUpdate>(
 // Campaign Settings Model
 export interface ICampaignSettings extends Document {
   targetAmount: number;
+  /** Short name in the main nav (tabs). Hero uses `campaignTitle`. */
+  siteName?: string;
   campaignTitle: string;
   campaignDescription: string;
   fatherName: string;
@@ -179,6 +181,7 @@ export interface ICampaignSettings extends Document {
 const campaignSettingsSchema = new Schema<ICampaignSettings>(
   {
     targetAmount: { type: Number, required: true, default: 2000000 },
+    siteName: String,
     campaignTitle: { type: String, required: true },
     campaignDescription: { type: String, required: true },
     fatherName: { type: String, required: true },
