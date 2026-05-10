@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Admin, CampaignSettings, QRCode } from '@/lib/models';
 import { hashPassword } from '@/lib/auth';
+import { DEFAULT_UPI_PLACEHOLDER } from '@/lib/qr-defaults';
 
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com';
 /** Default login id matches email unless `ADMIN_USERNAME` overrides (e.g. `admin`). */
@@ -69,11 +70,12 @@ export async function ensureApplicationDefaults(): Promise<void> {
 
   const qrCount = await QRCode.countDocuments();
   if (qrCount === 0) {
-    const placeholderUpi = 'upi://pay?pa=family@paytm&pn=Family&cu=INR';
     await QRCode.insertMany(
       Array.from({ length: 8 }, (_, i) => ({
         code: i + 1,
-        upiString: placeholderUpi,
+        upiString: DEFAULT_UPI_PLACEHOLDER,
+        upiId: '',
+        upiTargetApp: 'ANY' as const,
         provider: 'POOL' as const,
         displayName: `QR ${i + 1}`,
         isActive: true,

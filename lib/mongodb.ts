@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+/**
+ * Single connection per Node process. Every `connectDB()` call awaits the same promise — no connection pool spam.
+ * Optional eager connect: `instrumentation.ts` calls this at server boot so routes reuse an already-ready client.
+ */
 const cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = {
   conn: null,
   promise: null,

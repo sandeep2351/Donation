@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongodb';
 import { QRCode } from '@/lib/models';
+import { DEFAULT_UPI_PLACEHOLDER } from '@/lib/qr-defaults';
 import { qrCodeUpdateSchema } from '@/lib/validations';
 import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,8 +24,13 @@ export async function PATCH(
     if (patch.imageUrl !== undefined) {
       doc.imageUrl = patch.imageUrl === '' ? null : patch.imageUrl;
     }
-    if (patch.upiString !== undefined && patch.upiString.length > 0) {
-      doc.upiString = patch.upiString;
+    if (patch.upiTargetApp !== undefined) doc.upiTargetApp = patch.upiTargetApp;
+    if (patch.upiId !== undefined) {
+      doc.upiId = patch.upiId.trim();
+    }
+    if (patch.upiString !== undefined) {
+      doc.upiString =
+        patch.upiString.length > 0 ? patch.upiString : DEFAULT_UPI_PLACEHOLDER;
     }
     if (patch.displayName !== undefined) doc.displayName = patch.displayName;
     if (patch.isActive !== undefined) doc.isActive = patch.isActive;

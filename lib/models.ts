@@ -66,6 +66,14 @@ export interface IQRCode extends Document {
   code: number;
   /** NPCI payment URI, e.g. `upi://pay?pa=vpa@bank&pn=Name&cu=INR` — not the same as UPI ID alone; see SETUP.md */
   upiString: string;
+  /** Plain VPA only, e.g. `name@ybl` — used to build `upi://pay?…` with displayName when full string is unset/placeholder. */
+  upiId?: string;
+  /**
+   * Which Pay tab on /donate should prefer this slot’s UPI string. ANY = all tabs (rotation pool).
+   * Use one real `upi://…` per app if each app shows a different QR/VPA on your phone.
+   */
+  /** Default ANY when missing (older DB rows). */
+  upiTargetApp?: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'ANY';
   /** POOL = shared rotation slot; legacy rows may still use app-specific enums. */
   provider: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'POOL';
   displayName: string;
@@ -81,6 +89,12 @@ const qrCodeSchema = new Schema<IQRCode>(
   {
     code: { type: Number, required: true, unique: true },
     upiString: { type: String, required: true },
+    upiId: { type: String, default: '' },
+    upiTargetApp: {
+      type: String,
+      enum: ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY'],
+      default: 'ANY',
+    },
     provider: { type: String, enum: ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'POOL'], required: true },
     displayName: { type: String, required: true },
     isActive: { type: Boolean, default: true },

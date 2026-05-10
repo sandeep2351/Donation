@@ -12,6 +12,7 @@ import {
   QrCode,
   Plus,
 } from 'lucide-react';
+import type { UpiQrTargetApp } from '@/lib/qr-defaults';
 
 interface AdminDashboardClientProps {
   activeTab: string;
@@ -31,8 +32,12 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [qrList, setQrList] = useState<Record<string, unknown>[]>([]);
   const [qrEdits, setQrEdits] = useState<Record<string, string>>({});
   const [qrUpiStringEdits, setQrUpiStringEdits] = useState<Record<string, string>>({});
+  const [qrUpiIdEdits, setQrUpiIdEdits] = useState<Record<string, string>>({});
   const [qrLabelEdits, setQrLabelEdits] = useState<Record<string, string>>({});
+  const [qrActiveEdits, setQrActiveEdits] = useState<Record<string, boolean>>({});
+  const [qrTargetAppEdits, setQrTargetAppEdits] = useState<Record<string, UpiQrTargetApp>>({});
   const [qrAddBusy, setQrAddBusy] = useState(false);
+  const [donationsBulkDeleting, setDonationsBulkDeleting] = useState(false);
 
   const [medicalForm, setMedicalForm] = useState({
     title: '',
@@ -94,16 +99,26 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       setQrList(list);
       const edits: Record<string, string> = {};
       const upiEdits: Record<string, string> = {};
+      const upiIds: Record<string, string> = {};
       const labels: Record<string, string> = {};
+      const active: Record<string, boolean> = {};
+      const targets: Record<string, UpiQrTargetApp> = {};
       for (const q of list) {
         const id = String(q._id);
         edits[id] = (q.imageUrl as string) || '';
         upiEdits[id] = String((q as { upiString?: string }).upiString || '');
+        upiIds[id] = String((q as { upiId?: string }).upiId || '');
         labels[id] = String(q.displayName || '');
+        active[id] = (q as { isActive?: boolean }).isActive !== false;
+        const ta = (q as { upiTargetApp?: UpiQrTargetApp }).upiTargetApp;
+        targets[id] = ta && ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY'].includes(ta) ? ta : 'ANY';
       }
       setQrEdits(edits);
       setQrUpiStringEdits(upiEdits);
+      setQrUpiIdEdits(upiIds);
       setQrLabelEdits(labels);
+      setQrActiveEdits(active);
+      setQrTargetAppEdits(targets);
     } catch {
       setQrList([]);
     }
@@ -153,12 +168,38 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
-  const handleRejectDonation = async (donationId: string) => {
+  const handleDeleteDonation = async (donationId: string) => {
+    if (!confirm('Remove this donation from the database? Totals update if it was confirmed.')) return;
     try {
-      await fetch(`/api/donations/${donationId}`, { method: 'DELETE' });
+      const r = await fetch(`/api/donations/${donationId}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('delete failed');
       fetchDonations();
     } catch (err) {
-      console.error('Failed to reject donation:', err);
+      console.error('Failed to delete donation:', err);
+      alert('Could not delete. Stay logged in and try again.');
+    }
+  };
+
+  const handleDeleteAllDonations = async () => {
+    if (donations.length === 0) return;
+    if (
+      !confirm(
+        'Delete ALL donation records? The public donor list and fundraising totals will reset. This cannot be undone.'
+      )
+    ) {
+      return;
+    }
+    if (!confirm('Final confirmation: remove every row in the donations table?')) return;
+    setDonationsBulkDeleting(true);
+    try {
+      const r = await fetch('/api/donations', { method: 'DELETE' });
+      if (!r.ok) throw new Error('bulk delete failed');
+      await fetchDonations();
+    } catch (err) {
+      console.error(err);
+      alert('Could not clear donations. Stay logged in and try again.');
+    } finally {
+      setDonationsBulkDeleting(false);
     }
   };
 
@@ -304,22 +345,30 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
   const saveQr = async (id: string) => {
     try {
+      const row = qrList.find((q) => String(q._id) === id);
+      const code = row ? Number(row.code) : 0;
       const label = (qrLabelEdits[id] || '').trim();
       const upi = (qrUpiStringEdits[id] || '').trim();
+      const upiId = (qrUpiIdEdits[id] || '').trim();
       const r = await fetch(`/api/qr-codes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: qrEdits[id] || '',
-          ...(label.length > 0 ? { displayName: label } : {}),
-          ...(upi.length > 0 ? { upiString: upi } : {}),
+          displayName: label || `QR ${code}`,
+          upiString: upi,
+          upiId,
+          isActive: qrActiveEdits[id] !== false,
+          upiTargetApp: qrTargetAppEdits[id] ?? 'ANY',
         }),
       });
       if (!r.ok) throw new Error('patch failed');
       await fetchQrs();
     } catch (e) {
       console.error(e);
-      alert('Could not save QR row');
+      alert(
+        'Could not save QR row. UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?'
+      );
     }
   };
 
@@ -442,12 +491,13 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Amount</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Status</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Date</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {donations.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                         No donations yet.
                       </td>
                     </tr>
@@ -487,6 +537,16 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                           <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                             {new Date((donation.createdAt as string) || '').toLocaleDateString()}
                           </td>
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDonation(id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       );
                     })
@@ -502,14 +562,29 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-3xl font-serif font-bold text-foreground">Donations & donors</h2>
-            <button
-              type="button"
-              onClick={handleExportDonations}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg bg-card hover:bg-secondary text-sm font-medium"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportDonations}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg bg-card hover:bg-secondary text-sm font-medium"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllDonations}
+                disabled={donations.length === 0 || donationsBulkDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-destructive/40 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive/10 text-sm font-medium disabled:opacity-50"
+              >
+                {donationsBulkDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Clear all donors
+              </button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground text-pretty max-w-3xl">
             All rows from MongoDB. Internal notes are never shown on the public site. Approving a pending row marks it
@@ -583,25 +658,23 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                         </td>
                         <td className="px-3 py-3 space-y-1">
                           {donation.status === 'PENDING' && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleApproveDonation(id)}
-                                className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-900 rounded text-xs hover:bg-emerald-200"
-                              >
-                                <Check className="w-3 h-3" />
-                                Approve
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRejectDonation(id)}
-                                className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200"
-                              >
-                                <X className="w-3 h-3" />
-                                Remove
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              onClick={() => handleApproveDonation(id)}
+                              className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-900 rounded text-xs hover:bg-emerald-200"
+                            >
+                              <Check className="w-3 h-3" />
+                              Approve
+                            </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDonation(id)}
+                            className="flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive rounded text-xs hover:bg-destructive/20"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     );
@@ -619,10 +692,10 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
             <div>
               <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
               <p className="text-muted-foreground text-sm max-w-2xl text-pretty mt-1">
-                One shared pool for all apps on the donate page.                 Set each slot&apos;s <strong>UPI string</strong> (
-                <code className="text-xs bg-secondary px-1 rounded">upi://pay?pa=…</code>) — not the same as UPI ID
-                alone. The <strong>Pay</strong> button on the donate page uses this link plus the donor&apos;s amount.
-                Upload QR images to Cloudinary or paste image URLs.
+                <strong>UPI ID</strong> is the short address only (e.g. <code className="text-xs bg-secondary px-1 rounded">name@ybl</code>
+                ) — we build the pay link using <strong>Label</strong> as the payee name. Optional{' '}
+                <strong>UPI string</strong> overrides that when set (full <code className="text-xs bg-secondary px-1 rounded">upi://pay?pa=…</code>{' '}
+                from My QR). Set <strong>Pay tab</strong> per app or <strong>Any</strong>. Upload images or paste URLs.
               </p>
             </div>
             <button
@@ -638,14 +711,17 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
             <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
-              <table className="w-full text-sm min-w-[72rem]">
+              <table className="w-full text-sm min-w-[88rem]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
                     <th className="px-3 py-3 text-left font-semibold text-foreground">#</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[9rem]">Pay tab</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Label</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[8.5rem]">UPI ID</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">UPI string</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Image URL</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Upload</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Active</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -662,6 +738,24 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               {String(qr.code)}
                             </span>
                           </td>
+                          <td className="px-3 py-3 min-w-[9rem]">
+                            <select
+                              className="w-full max-w-[10rem] px-2 py-1.5 border border-border rounded-md bg-background text-xs"
+                              value={qrTargetAppEdits[id] ?? 'ANY'}
+                              onChange={(e) =>
+                                setQrTargetAppEdits((m) => ({
+                                  ...m,
+                                  [id]: e.target.value as UpiQrTargetApp,
+                                }))
+                              }
+                              aria-label="Which donate-page Pay tab uses this UPI string"
+                            >
+                              <option value="ANY">Any app</option>
+                              <option value="GOOGLE_PAY">Google Pay</option>
+                              <option value="PHONEPE">PhonePe</option>
+                              <option value="PAYTM">Paytm</option>
+                            </select>
+                          </td>
                           <td className="px-3 py-3 min-w-[140px]">
                             <input
                               className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-sm"
@@ -670,13 +764,23 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               placeholder="Label"
                             />
                           </td>
+                          <td className="px-3 py-3 min-w-[8.5rem] max-w-[11rem]">
+                            <input
+                              className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-sm font-mono"
+                              value={qrUpiIdEdits[id] ?? ''}
+                              onChange={(e) => setQrUpiIdEdits((m) => ({ ...m, [id]: e.target.value }))}
+                              placeholder="name@ybl"
+                              title="VPA only (no upi://). Pay link uses Label as payee name unless UPI string is set."
+                              autoComplete="off"
+                            />
+                          </td>
                           <td className="px-3 py-3 min-w-[200px] max-w-[280px]">
                             <input
                               className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-[11px] font-mono"
                               value={qrUpiStringEdits[id] ?? ''}
                               onChange={(e) => setQrUpiStringEdits((m) => ({ ...m, [id]: e.target.value }))}
-                              placeholder="upi://pay?pa=yourid@ybl&pn=Name&cu=INR"
-                              title="Not shown in PhonePe UI — build from your UPI ID (My QR). See SETUP.md step 3."
+                              placeholder="Optional: full upi://pay?…"
+                              title="If filled, this overrides UPI ID + Label for Pay and QR tap."
                             />
                           </td>
                           <td className="px-3 py-3 min-w-[220px]">
@@ -704,6 +808,19 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               />
                             </label>
                           </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={qrActiveEdits[id] !== false}
+                                onChange={(e) =>
+                                  setQrActiveEdits((m) => ({ ...m, [id]: e.target.checked }))
+                                }
+                                className="rounded border-border"
+                              />
+                              <span className="text-muted-foreground">Show on site</span>
+                            </label>
+                          </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap items-center gap-2">
                               <button
@@ -712,7 +829,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:opacity-95"
                               >
                                 <Save className="w-3.5 h-3.5" />
-                                Save
+                                Save changes
                               </button>
                               <button
                                 type="button"

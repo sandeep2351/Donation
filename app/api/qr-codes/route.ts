@@ -2,9 +2,8 @@ import { connectDB } from '@/lib/mongodb';
 import { QRCode } from '@/lib/models';
 import { getCurrentAdmin } from '@/lib/auth';
 import { requireAdmin } from '@/lib/require-admin';
+import { DEFAULT_UPI_PLACEHOLDER } from '@/lib/qr-defaults';
 import { NextResponse } from 'next/server';
-
-const DEFAULT_UPI = 'upi://pay?pa=family@paytm&pn=Family&cu=INR';
 
 export async function GET() {
   try {
@@ -31,7 +30,9 @@ export async function POST() {
 
     const doc = await QRCode.create({
       code: nextCode,
-      upiString: DEFAULT_UPI,
+      upiString: DEFAULT_UPI_PLACEHOLDER,
+      upiId: '',
+      upiTargetApp: 'ANY',
       provider: 'POOL',
       displayName: `QR ${nextCode}`,
       isActive: true,

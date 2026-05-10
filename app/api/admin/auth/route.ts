@@ -10,6 +10,7 @@ import { adminLoginSchema } from '@/lib/validations';
 import { getCurrentAdmin } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
+import { mongoConnectErrorResponse } from '@/lib/mongo-connect-hint';
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,10 +100,12 @@ export async function POST(request: NextRequest) {
     if (error instanceof ZodError) {
       return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
-    
-    return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 500 }
-    );
+
+    const mongo = mongoConnectErrorResponse(error);
+    if (mongo) {
+      return NextResponse.json(mongo.body, { status: mongo.status });
+    }
+
+    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }

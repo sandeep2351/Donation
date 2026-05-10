@@ -30,10 +30,20 @@ This guide will walk you through setting up all the required services and deploy
 5. **Get Connection String**
    - Go to "Databases"
    - Click "Connect" on your cluster
-   - Select "Connect with the MongoDB Node.js Driver"
-   - Copy the connection string
-   - Replace `<username>`, `<password>`, and `<database>` with your values
-   - Save this as your `MONGODB_URI`
+   - Select "Connect with the MongoDB Node.js Driver" (or "Drivers")
+   - Atlas often shows a **`mongodb+srv://`** URI first. That form needs DNS **SRV**; some networks block it (`querySrv EREFUSED`). If you see that error, use a **standard** URI instead (step 6 below).
+   - Replace `<username>`, `<password>`, and the database name in the path with your values
+   - If your password has `@`, `#`, `&`, `%`, etc., URL-encode it, e.g.  
+     `node -e "console.log(encodeURIComponent('your-password-here'))"`
+   - Save the final value as **`MONGODB_URI`** (in `.env` / Vercel → Environment Variables). If the URI contains `&`, wrap the whole value in quotes in `.env`:  
+     `MONGODB_URI="mongodb://..."`
+
+6. **Standard URI (no SRV) — use this when `mongodb+srv` / DNS fails**
+   - In the same **Connect** flow, look for an option such as **“I don’t have MongoDB Compass”** / **“Connect using MongoDB Compass”**, or open **Compass** from Atlas — the **multi-line** connection details often include a string starting with **`mongodb://`** and listing **several** hosts like `cluster0-shard-00-00.xxxxx.mongodb.net:27017,...`
+   - Alternatively: Atlas → **Connect** → **MongoDB Shell** (`mongosh`) — the connection info sometimes shows the replica-set host list; you can build  
+     `mongodb://USER:PASS@host1:27017,host2:27017,host3:27017/DATABASE?tls=true&replicaSet=atlas-xxxx-shard-0&authSource=admin&retryWrites=true&w=majority`  
+     (copy **exact** query parameters from Atlas; do not invent `replicaSet`.)
+   - Your `MONGODB_URI` must start with **`mongodb://`** (three hosts, port **27017**, **`tls=true`** or **`ssl=true`** per Atlas). After switching, restart `pnpm dev` and redeploy on Vercel so the new env var is picked up.
 
 ## Step 2: Cloudinary Setup
 
@@ -233,15 +243,27 @@ Edit `/app/medical/page.tsx`:
 ## Troubleshooting
 
 ### MongoDB Connection Issues
-```bash
-# Test connection locally
-npm run test-db
-```
 
 If failing:
-- Check IP whitelist in MongoDB Atlas Network Access
-- Verify username and password
-- Ensure database user has Atlas user privilege
+- Check IP whitelist in MongoDB Atlas **Network Access** (for local dev you may need `0.0.0.0/0` or your current IP)
+- Verify username and password in **Database** → **Users**
+- Ensure the Atlas cluster is **not paused** (free tier clusters pause after inactivity)
+
+#### `querySrv EREFUSED` or `_mongodb._tcp...` in the error
+
+**Atlas “allow all IPs” (`0.0.0.0/0`) does not fix this.** That setting only controls which client IPs MongoDB *accepts after a TCP connection is attempted*. `EREFUSED` on `querySrv` happens earlier: your laptop/phone’s **DNS resolver refuses the SRV lookup** used by `mongodb+srv://`, so the driver never learns the cluster hostnames and never talks to Atlas at all.
+
+`mongodb+srv://` URLs require a DNS **SRV** lookup. Some networks, VPNs, Pi-hole, or corporate DNS **refuse** that lookup, so the app never reaches MongoDB (admin login returns 503 with a hint).
+
+**Fix that works on restrictive DNS:** stop using **`mongodb+srv://`**. Put a **standard** **`mongodb://`** URI in `MONGODB_URI` (see **Step 1 → item 6** above). No SRV lookup → no `querySrv EREFUSED`.
+
+**Other options:**
+
+1. Use another network (e.g. phone hotspot) or turn off VPN / ad-blocking DNS — then `mongodb+srv` might work again without changing the URI.
+2. Confirm the URI in **Vercel** (or `.env`) was saved after the change; redeploy if needed.
+3. From the machine running Next.js, SRV test (only relevant if you still use `srv`):  
+   `nslookup -type=SRV _mongodb._tcp.YOUR_CLUSTER_HOST.mongodb.net`  
+   If this fails, prefer the **`mongodb://`** URI instead of fighting DNS.
 
 ### Cloudinary Upload Issues
 - Verify API credentials are correct

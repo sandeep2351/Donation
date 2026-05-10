@@ -106,8 +106,21 @@ export const qrCodeSchema = z.object({
 
 export type QRCodeInput = z.infer<typeof qrCodeSchema>;
 
+const upiIdField = z
+  .union([
+    z.literal(''),
+    z
+      .string()
+      .min(3)
+      .max(100)
+      .regex(/^[\w.\-]+@[\w.\-]+$/i, 'Use UPI ID only, e.g. name@ybl'),
+  ])
+  .optional();
+
 export const qrCodeUpdateSchema = z.object({
   imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
+  upiTargetApp: z.enum(['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY']).optional(),
+  upiId: upiIdField,
   upiString: z
     .union([
       z.literal(''),

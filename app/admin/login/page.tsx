@@ -10,11 +10,13 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [errorHint, setErrorHint] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setErrorHint('');
     setLoading(true);
 
     try {
@@ -32,6 +34,9 @@ export default function AdminLoginPage() {
 
       if (!response.ok) {
         setError(data.error || 'Authentication failed');
+        if (typeof data.hint === 'string' && data.hint.length > 0) {
+          setErrorHint(data.hint);
+        }
         return;
       }
 
@@ -98,7 +103,12 @@ export default function AdminLoginPage() {
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+              <div className="text-sm text-red-700 space-y-2">
+                <p className="font-medium">{error}</p>
+                {errorHint && (
+                  <p className="text-red-600/90 text-xs leading-relaxed text-pretty">{errorHint}</p>
+                )}
+              </div>
             </div>
           )}
 

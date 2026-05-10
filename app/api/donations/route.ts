@@ -4,6 +4,7 @@ import { donationSchema } from '@/lib/validations';
 import { ZodError } from 'zod';
 import { getCurrentAdmin } from '@/lib/auth';
 import { refreshCampaignRaisedAmount } from '@/lib/campaign-stats';
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -100,5 +101,25 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Failed to create donation' }, { status: 500 });
+  }
+}
+
+/** Remove every donation row (admin only). Recalculates campaign totals. */
+export async function DELETE() {
+  try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
+
+    await connectDB();
+    const result = await Donation.deleteMany({});
+    await refreshCampaignRaisedAmount();
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error('Donation bulk delete error:', error);
+    return NextResponse.json({ error: 'Failed to delete donations' }, { status: 500 });
   }
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
-import { buildUpiPayUri } from '@/lib/upi-intent';
+import { buildUpiPayUri, resolveQrBaseUpiForPayment } from '@/lib/upi-intent';
 import type { UpiAppTab } from '@/lib/upi-intent';
 import {
   isEmbeddedBrowserLikelyBreakingUpi,
@@ -17,6 +17,10 @@ type QrRow = {
   displayName: string;
   provider: string;
   upiString?: string;
+  /** Admin: which Pay tab uses this slot’s UPI (ANY = all tabs / shared pool). */
+  upiTargetApp?: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'ANY';
+  /** Plain VPA when full upiString is not used, e.g. name@ybl */
+  upiId?: string;
   imageUrl?: string | null;
   isActive?: boolean;
 };
@@ -78,6 +82,17 @@ export default function DonatePage() {
 
   const poolLen = qrPool.length;
 
+  const poolForTab = useMemo(() => {
+    const tab = selectedUpiApp;
+    const tagged = qrPool.filter((q) => {
+      const t = q.upiTargetApp || 'ANY';
+      return t === 'ANY' || t === tab;
+    });
+    return tagged.length > 0 ? tagged : qrPool;
+  }, [qrPool, selectedUpiApp]);
+
+  const poolForTabLen = poolForTab.length;
+
   const loadQr = useCallback(async () => {
     setQrLoading(true);
     try {
@@ -108,13 +123,15 @@ export default function DonatePage() {
   const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
 
   const slotIndexForApp = (app: UpiAppId) =>
-    poolLen === 0 ? 0 : (rotationTick + APP_SLOT_OFFSET[app]) % poolLen;
+    poolForTabLen === 0 ? 0 : (rotationTick + APP_SLOT_OFFSET[app]) % poolForTabLen;
 
-  const activeQr = poolLen === 0 ? null : qrPool[slotIndexForApp(selectedUpiApp)];
+  const activeQr = poolForTabLen === 0 ? null : poolForTab[slotIndexForApp(selectedUpiApp)];
 
   const upiPayHref = useMemo(() => {
     if (!activeQr || finalAmount < 100) return null;
-    return buildUpiPayUri(activeQr.upiString, finalAmount, 'Donation');
+    const base = resolveQrBaseUpiForPayment(activeQr);
+    if (!base) return null;
+    return buildUpiPayUri(base, finalAmount, 'Donation');
   }, [activeQr, finalAmount]);
 
   useEffect(() => {
@@ -207,8 +224,10 @@ export default function DonatePage() {
           Donate
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground text-center mb-8 sm:mb-12 max-w-2xl mx-auto text-pretty leading-relaxed px-1">
-          Choose an amount and a payment app. Each app rotates through your QR pool every 30 seconds on its own lane
-          (staggered so different apps can show different slots at the same time when you have several codes).
+          Choose an amount and a payment app. In admin, set each QR slot&apos;s <strong className="text-foreground">Pay tab</strong>{' '}
+          so Google Pay, PhonePe, and Paytm use the correct <code className="text-xs">upi://</code> string from your real
+          QR. Slots marked <strong className="text-foreground">Any app</strong> share one rotation pool (staggered every
+          30s per tab when you have several).
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
@@ -331,7 +350,15 @@ export default function DonatePage() {
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
                 {poolLen > 1 && (
                   <p className="text-xs text-muted-foreground text-right max-w-xs sm:max-w-none">
-                    Pool: {poolLen} slots · each app advances every {ROTATE_POOL_MS / 1000}s (lanes staggered).
+                    {poolForTabLen < poolLen ? (
+                      <>
+                        Tab pool: {poolForTabLen} of {poolLen} slots · full list rotates every {ROTATE_POOL_MS / 1000}s.
+                      </>
+                    ) : (
+                      <>
+                        Pool: {poolLen} slots · each app advances every {ROTATE_POOL_MS / 1000}s (lanes staggered).
+                      </>
+                    )}
                   </p>
                 )}
               </div>
@@ -405,9 +432,10 @@ export default function DonatePage() {
                     </div>
                     <p className="mt-3 text-sm text-muted-foreground text-pretty">
                       Use <strong className="text-foreground font-medium">Pay with UPI</strong> below to open your UPI
-                      app with this amount, or scan the QR. If your phone asks which app to use, pick{' '}
-                      {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your preferred app'} (or any
-                      UPI app). Slots rotate per app every {ROTATE_POOL_MS / 1000}s when you have several codes.
+                      app with this amount, or scan the QR. This tab uses the UPI string from slot{' '}
+                      <strong className="text-foreground">{activeQr.code}</strong>
+                      {activeQr.displayName ? ` (${activeQr.displayName})` : ''}. If your phone asks which app to use,
+                      pick {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your app'}.
                     </p>
                   </div>
 
@@ -427,11 +455,12 @@ export default function DonatePage() {
                   </div>
 
                   <div className="mt-6 w-full max-w-md mx-auto space-y-4">
-                    {finalAmount >= 100 && !upiPayHref && (
+                    {finalAmount >= 100 && !upiPayHref && activeQr && (
                       <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200/90 rounded-lg px-3 py-2 text-pretty">
-                        This QR slot needs a valid <strong>UPI link</strong> in admin (QR codes → <strong>UPI string</strong>{' '}
-                        column). See the setup guide: UPI ID is only the address (e.g. <code className="text-xs">name@paytm</code>
-                        ); the UPI string is the full <code className="text-xs">upi://pay?pa=…</code> link.
+                        This slot (QR #{activeQr.code}) needs a real <strong>UPI ID</strong> (e.g.{' '}
+                        <code className="text-xs">name@ybl</code>) or a full <strong>UPI string</strong> in admin → QR
+                        codes. Use <strong>Label</strong> for the payee name when using UPI ID only. Save changes, then
+                        refresh.
                       </p>
                     )}
                     {upiPayHref && finalAmount >= 100 && !desktopNoUpi && (

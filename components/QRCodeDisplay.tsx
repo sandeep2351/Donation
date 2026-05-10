@@ -56,13 +56,34 @@ export default function QRCodeDisplay({
       <div className="mb-4 w-full rounded-xl border border-border bg-white p-3 sm:p-4 shadow-sm">
         {qrCode.cloudinaryUrl || qrCode.imageUrl ? (
           <div className="mx-auto aspect-square max-h-[min(70vmin,18rem)] w-full max-w-[min(100%,18rem)] bg-white flex items-center justify-center">
-            <img
-              src={qrCode.cloudinaryUrl || qrCode.imageUrl}
-              alt={`UPI QR code, slot ${qrCode.code}`}
-              className="h-full w-full object-contain"
-              loading="lazy"
-              sizes="(max-width: 640px) 85vw, 288px"
-            />
+            {showPayLink && href ? (
+              <a
+                href={href}
+                onClick={() => onPayClick?.()}
+                className="block h-full w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
+                aria-label={
+                  amountOk && payAmountRupees
+                    ? `Pay ${payAmountRupees.toLocaleString('en-IN')} rupees with UPI`
+                    : 'Pay with UPI'
+                }
+              >
+                <img
+                  src={qrCode.cloudinaryUrl || qrCode.imageUrl}
+                  alt={`UPI QR code, slot ${qrCode.code} — tap to pay`}
+                  className="h-full w-full object-contain cursor-pointer"
+                  loading="lazy"
+                  sizes="(max-width: 640px) 85vw, 288px"
+                />
+              </a>
+            ) : (
+              <img
+                src={qrCode.cloudinaryUrl || qrCode.imageUrl}
+                alt={`UPI QR code, slot ${qrCode.code}`}
+                className="h-full w-full object-contain"
+                loading="lazy"
+                sizes="(max-width: 640px) 85vw, 288px"
+              />
+            )}
           </div>
         ) : (
           <div className="mx-auto aspect-square max-h-[min(70vmin,18rem)] w-full max-w-[min(100%,18rem)] bg-white flex items-center justify-center">
@@ -72,7 +93,7 @@ export default function QRCodeDisplay({
       </div>
 
       <p className="text-center text-sm text-muted-foreground mb-4 text-pretty">
-        Scan to pay, or use Pay below to open your UPI app with this amount.
+        Tap the QR on your phone to pay, or use the button below — both open your UPI app with this amount.
       </p>
 
       {blockDesktopPay && canPay ? (
@@ -99,7 +120,7 @@ export default function QRCodeDisplay({
           disabled
           className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground text-sm font-medium w-full max-w-[min(100%,20rem)] cursor-not-allowed"
         >
-          Pay (enter ₹100+ and set UPI link in admin)
+          Pay (enter ₹100+ and set UPI ID or full link in admin)
         </button>
       )}
     </div>
