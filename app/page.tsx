@@ -13,7 +13,7 @@ export default async function Home() {
   const current = data.currentAmount;
   const donationCount = data.donationCount;
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-  const title = data.settings?.campaignTitle || "Help Save One's Life";
+  const title = data.settings?.campaignTitle || 'Help Save One Life';
   const subtitle =
     data.settings?.campaignDescription ||
     "Our father needs a lung transplant. With your help we can cover surgery, hospital care, and recovery.";

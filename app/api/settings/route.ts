@@ -17,7 +17,7 @@ export async function GET() {
       await CampaignSettings.create({
         targetAmount: 2000000,
         siteName: 'Family Fundraiser',
-        campaignTitle: "Help Save One's Life",
+        campaignTitle: 'Help Save One Life',
         campaignDescription: "Supporting our father's lung transplant surgery.",
         fatherName: 'Father Name',
         fatherAge: 50,
