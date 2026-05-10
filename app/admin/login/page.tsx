@@ -11,8 +11,6 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,10 +22,9 @@ export default function AdminLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: isRegistering ? 'register' : 'login',
+          action: 'login',
           username,
           password,
-          ...(isRegistering && { email }),
         }),
       });
 
@@ -38,7 +35,6 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Redirect to dashboard on success
       router.push('/admin/dashboard');
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -55,48 +51,25 @@ export default function AdminLoginPage() {
           <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg">✓</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isRegistering ? 'Setup Admin Account' : 'Admin Login'}
-          </h1>
-          <p className="text-gray-600 text-sm mt-2">
-            {isRegistering
-              ? 'Create your admin account to manage the campaign'
-              : 'Sign in to access the dashboard'}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
+          <p className="text-gray-600 text-sm mt-2">Sign in to access the dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username
+              Username or email
             </label>
             <input
               id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
+              placeholder="Username or email"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
               required
             />
           </div>
-
-          {isRegistering && (
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
-                required
-              />
-            </div>
-          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
@@ -134,36 +107,9 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="w-full px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
           >
-            {loading ? 'Processing...' : isRegistering ? 'Create Account' : 'Sign In'}
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsRegistering(!isRegistering);
-              setError('');
-              setUsername('');
-              setPassword('');
-              setEmail('');
-            }}
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            {isRegistering
-              ? 'Already have an account? Sign in'
-              : 'No account? Create one'}
-          </button>
-        </div>
-
-        <div className="mt-6 p-4 bg-secondary border border-border rounded-lg text-xs text-muted-foreground leading-relaxed">
-          <p className="font-medium text-foreground mb-1">First-time setup</p>
-          <p>
-            If the database was empty, an admin user is created automatically on first server connection (see{' '}
-            <code className="text-[11px] bg-background px-1 rounded">ADMIN_USERNAME</code> /{' '}
-            <code className="text-[11px] bg-background px-1 rounded">ADMIN_PASSWORD</code> in your environment). Use
-            the regular login form above—do not post passwords on the public site.
-          </p>
-        </div>
       </div>
     </div>
   );

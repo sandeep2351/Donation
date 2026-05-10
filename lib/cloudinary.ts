@@ -1,8 +1,19 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
 const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+
+/** Must match the upload preset name in Cloudinary (case-sensitive). Override with CLOUDINARY_UPLOAD_PRESET. */
+const CLOUDINARY_UPLOAD_PRESET =
+  process.env.CLOUDINARY_UPLOAD_PRESET?.trim() || 'Donation';
+
+/**
+ * If your preset is **unsigned** in Cloudinary, set `CLOUDINARY_PRESET_UNSIGNED=true`.
+ * Signed presets (default) require a server-side signature that includes `upload_preset`.
+ */
+const CLOUDINARY_PRESET_UNSIGNED = process.env.CLOUDINARY_PRESET_UNSIGNED === 'true';
 
 if (!CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET || !CLOUDINARY_CLOUD_NAME) {
   console.warn('Cloudinary credentials not configured');
@@ -26,6 +37,37 @@ export type CloudinaryUploadResult = {
   bytes?: number;
 };
 
+/** Cloudinary: SHA-1 hex digest of sorted `key=value` pairs concatenated with API secret (no separator). */
+function cloudinaryApiSign(params: Record<string, string | number>, apiSecret: string): string {
+  const pairs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== '')
+    .map(([k, v]) => [k, String(v)] as [string, string])
+    .sort(([a], [b]) => a.localeCompare(b));
+  const toSign = pairs.map(([k, v]) => `${k}=${v}`).join('&');
+  return crypto.createHash('sha1').update(toSign + apiSecret).digest('hex');
+}
+
+function cloudinaryErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { error?: { message?: string } } | undefined;
+    const msg = data?.error?.message;
+    const headerErr =
+      typeof error.response?.headers?.['x-cld-error'] === 'string'
+        ? error.response.headers['x-cld-error']
+        : undefined;
+    if (msg) return msg;
+    if (headerErr) return headerErr;
+    if (error.response?.status) return `Cloudinary HTTP ${error.response.status}`;
+  }
+  if (error instanceof Error) return error.message;
+  return 'Unknown Cloudinary error';
+}
+
+/**
+ * Uploads via the `Donation` preset (or `CLOUDINARY_UPLOAD_PRESET`).
+ * - **Signed preset** (default): sends `upload_preset` + `api_key` + `timestamp` + `signature`.
+ * - **Unsigned preset**: set `CLOUDINARY_PRESET_UNSIGNED=true` (preset name only + file).
+ */
 export async function uploadToCloudinary(
   file: Buffer | string,
   filename: string,
@@ -44,8 +86,26 @@ export async function uploadToCloudinary(
     formData.append('file', new Blob([new Uint8Array(file)]), filename);
   }
 
-  formData.append('upload_preset', process.env.CLOUDINARY_UPLOAD_PRESET || 'unsigned_upload');
   formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  if (CLOUDINARY_PRESET_UNSIGNED) {
+    // Unsigned preset: do not send signature.
+  } else {
+    const timestamp = Math.round(Date.now() / 1000);
+    const signParams: Record<string, string | number> = {
+      timestamp,
+      upload_preset: CLOUDINARY_UPLOAD_PRESET,
+    };
+    if (options.folder) signParams.folder = options.folder;
+    if (options.tags?.length) signParams.tags = options.tags.join(',');
+    if (options.public_id) signParams.public_id = options.public_id;
+
+    const signature = cloudinaryApiSign(signParams, CLOUDINARY_API_SECRET);
+    formData.append('api_key', CLOUDINARY_API_KEY);
+    formData.append('timestamp', String(timestamp));
+    formData.append('signature', signature);
+  }
 
   if (options.folder) {
     formData.append('folder', options.folder);
@@ -60,11 +120,7 @@ export async function uploadToCloudinary(
   const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resource}/upload`;
 
   try {
-    const response = await axios.post(uploadUrl, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await axios.post(uploadUrl, formData);
 
     const d = response.data;
     return {
@@ -78,8 +134,19 @@ export async function uploadToCloudinary(
       bytes: d.bytes,
     };
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    throw new Error('Failed to upload file to Cloudinary');
+    console.error('Cloudinary upload error:', cloudinaryErrorMessage(error));
+    const detail = cloudinaryErrorMessage(error);
+    if (/invalid signature|signature/i.test(detail)) {
+      throw new Error(
+        `${detail} — Check API secret and that preset name "${CLOUDINARY_UPLOAD_PRESET}" matches Cloudinary exactly.`
+      );
+    }
+    if (/preset/i.test(detail)) {
+      throw new Error(
+        `${detail} — Preset "${CLOUDINARY_UPLOAD_PRESET}". If it is unsigned, set CLOUDINARY_PRESET_UNSIGNED=true in .env.`
+      );
+    }
+    throw new Error(detail || 'Failed to upload file to Cloudinary');
   }
 }
 

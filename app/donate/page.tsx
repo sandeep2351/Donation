@@ -4,36 +4,28 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
-type QrProvider = 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM';
+/** App “skin” for donors; the same QR pool rotates for each. */
+type UiProvider = 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM';
 
 type QrRow = {
   _id: string;
   code: number;
   displayName: string;
-  provider: QrProvider;
+  provider: UiProvider | 'POOL' | string;
   imageUrl?: string | null;
   isActive?: boolean;
 };
 
-const PROVIDER_ORDER: QrProvider[] = ['GOOGLE_PAY', 'PHONEPE', 'PAYTM'];
+const UI_PROVIDER_ORDER: UiProvider[] = ['GOOGLE_PAY', 'PHONEPE', 'PAYTM'];
 
-/** Rotate between multiple QR images for the *same* app every 2 minutes. */
-const ROTATE_WITHIN_PROVIDER_MS = 120_000;
+const APP_LABEL: Record<UiProvider, string> = {
+  GOOGLE_PAY: 'Google Pay',
+  PHONEPE: 'PhonePe',
+  PAYTM: 'Paytm',
+};
 
-function groupQrByProvider(rows: QrRow[]): Record<QrProvider, QrRow[]> {
-  const grouped: Record<QrProvider, QrRow[]> = {
-    GOOGLE_PAY: [],
-    PHONEPE: [],
-    PAYTM: [],
-  };
-  for (const r of rows) {
-    grouped[r.provider].push(r);
-  }
-  for (const p of PROVIDER_ORDER) {
-    grouped[p].sort((a, b) => a.code - b.code);
-  }
-  return grouped;
-}
+/** Shared pool rotates on this interval for every selected app. */
+const ROTATE_POOL_MS = 120_000;
 
 export default function DonatePage() {
   const [customAmount, setCustomAmount] = useState('');
@@ -46,25 +38,25 @@ export default function DonatePage() {
   const [error, setError] = useState('');
   const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
   const [qrLoading, setQrLoading] = useState(true);
-  const [selectedProvider, setSelectedProvider] = useState<QrProvider | null>(null);
-  const [variantIndex, setVariantIndex] = useState(0);
+  const [selectedUiApp, setSelectedUiApp] = useState<UiProvider>('GOOGLE_PAY');
+  const [poolIndex, setPoolIndex] = useState(0);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
-  const grouped = useMemo(() => groupQrByProvider(qrCodes), [qrCodes]);
-  const providersWithCodes = useMemo(
-    () => PROVIDER_ORDER.filter((p) => grouped[p].length > 0),
-    [grouped]
-  );
-  const currentList = selectedProvider ? grouped[selectedProvider] : [];
-  const currentListLength = currentList.length;
+  const qrPool = useMemo(() => {
+    return [...qrCodes]
+      .filter((q) => q.isActive !== false)
+      .sort((a, b) => a.code - b.code);
+  }, [qrCodes]);
+
+  const poolLen = qrPool.length;
 
   const loadQr = useCallback(async () => {
     setQrLoading(true);
     try {
       const res = await fetch('/api/qr-codes');
       const data = await res.json();
-      const list: QrRow[] = (data.qrCodes || []).filter((q: QrRow) => q.isActive !== false);
+      const list: QrRow[] = data.qrCodes || [];
       setQrCodes(list);
     } catch {
       setQrCodes([]);
@@ -78,31 +70,21 @@ export default function DonatePage() {
   }, [loadQr]);
 
   useEffect(() => {
-    const g = groupQrByProvider(qrCodes);
-    if (!qrCodes.length) {
-      setSelectedProvider(null);
-      return;
-    }
-    setSelectedProvider((prev) => {
-      if (prev && g[prev].length > 0) return prev;
-      return PROVIDER_ORDER.find((p) => g[p].length > 0) ?? null;
-    });
-  }, [qrCodes]);
+    setPoolIndex(0);
+  }, [selectedUiApp]);
 
   useEffect(() => {
-    setVariantIndex(0);
-  }, [selectedProvider]);
-
-  useEffect(() => {
-    if (!selectedProvider || currentListLength <= 1) return;
+    if (poolLen <= 1) return;
     const t = setInterval(() => {
-      setVariantIndex((i) => (i + 1) % currentListLength);
-    }, ROTATE_WITHIN_PROVIDER_MS);
+      setPoolIndex((i) => (i + 1) % poolLen);
+    }, ROTATE_POOL_MS);
     return () => clearInterval(t);
-  }, [selectedProvider, currentListLength]);
+  }, [poolLen]);
 
   const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
   const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+
+  const activeQr = poolLen > 0 ? qrPool[poolIndex % poolLen] : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,8 +103,7 @@ export default function DonatePage() {
       return;
     }
 
-    const activeQr = currentList[variantIndex];
-    if (!activeQr || !qrCodes.length) {
+    if (!activeQr) {
       setError('Payment QR codes are not configured yet. Please try again later.');
       setLoading(false);
       return;
@@ -184,15 +165,13 @@ export default function DonatePage() {
     );
   }
 
-  const activeQr = currentList[variantIndex];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance">Donate</h1>
         <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
-          Choose an amount, then scan the QR that matches your app. QR images are loaded from what the admin saved
-          (typically Cloudinary URLs).
+          Choose an amount, pick the app you use, then scan. The same QR pool rotates for every app (images from
+          admin).
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -313,10 +292,10 @@ export default function DonatePage() {
             <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
-                {selectedProvider && currentListLength > 1 && (
+                {poolLen > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    For {grouped[selectedProvider][0]?.displayName ?? 'this app'}, QR codes rotate every{' '}
-                    {ROTATE_WITHIN_PROVIDER_MS / 60_000} minutes ({currentListLength} options).
+                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · rotates every {ROTATE_POOL_MS / 60_000}{' '}
+                    minutes for {APP_LABEL[selectedUiApp]} (and the same pool for every app).
                   </p>
                 )}
               </div>
@@ -325,8 +304,8 @@ export default function DonatePage() {
                 <p className="text-center text-muted-foreground py-16">Loading payment options…</p>
               ) : !activeQr ? (
                 <p className="text-center text-muted-foreground py-16 text-pretty">
-                  No QR codes yet. Sign in to the admin dashboard, open &quot;QR codes&quot;, and paste a Cloudinary
-                  image URL for each provider.
+                  No QR codes yet. Sign in to the admin dashboard, open &quot;QR codes&quot;, and add slots plus image
+                  URLs.
                 </p>
               ) : (
                 <>
@@ -335,7 +314,7 @@ export default function DonatePage() {
                       qrCode={{
                         code: activeQr.code,
                         displayName: activeQr.displayName,
-                        provider: activeQr.provider,
+                        provider: selectedUiApp,
                         imageUrl: activeQr.imageUrl || undefined,
                         cloudinaryUrl: activeQr.imageUrl || undefined,
                       }}
@@ -345,27 +324,21 @@ export default function DonatePage() {
                   <div className="mt-8">
                     <p className="text-sm font-medium text-foreground mb-4">Choose app</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {providersWithCodes.map((p) => {
-                        const list = grouped[p];
-                        const rep = list[0];
-                        return (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setSelectedProvider(p)}
-                            className={`p-4 rounded-lg border-2 text-left transition-all ${
-                              selectedProvider === p
-                                ? 'border-primary bg-secondary'
-                                : 'border-border bg-background hover:border-primary/40'
-                            }`}
-                          >
-                            <p className="font-semibold text-foreground">{rep.displayName}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {list.length === 1 ? `Code ${rep.code}` : `${list.length} QR codes · Code ${rep.code}+`}
-                            </p>
-                          </button>
-                        );
-                      })}
+                      {UI_PROVIDER_ORDER.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setSelectedUiApp(p)}
+                          className={`p-4 rounded-lg border-2 text-left transition-all ${
+                            selectedUiApp === p
+                              ? 'border-primary bg-secondary'
+                              : 'border-border bg-background hover:border-primary/40'
+                          }`}
+                        >
+                          <p className="font-semibold text-foreground">{APP_LABEL[p]}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Same QR pool · slot {activeQr.code}</p>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>

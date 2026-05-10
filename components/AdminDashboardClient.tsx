@@ -1,12 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  Users,
-  Heart,
-  TrendingUp,
-  DollarSign,
-  BarChart3,
   Upload,
   Check,
   X,
@@ -14,19 +9,9 @@ import {
   Trash2,
   Download,
   Loader2,
+  QrCode,
+  Plus,
 } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 
 interface AdminDashboardClientProps {
   activeTab: string;
@@ -45,6 +30,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [qrList, setQrList] = useState<Record<string, unknown>[]>([]);
   const [qrEdits, setQrEdits] = useState<Record<string, string>>({});
+  const [qrLabelEdits, setQrLabelEdits] = useState<Record<string, string>>({});
+  const [qrAddBusy, setQrAddBusy] = useState(false);
 
   const [medicalForm, setMedicalForm] = useState({
     title: '',
@@ -66,19 +53,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [medicalListLoading, setMedicalListLoading] = useState(false);
   const [medicalUploading, setMedicalUploading] = useState(false);
 
-  const [updateForm, setUpdateForm] = useState({
-    title: '',
-    content: '',
-    author: 'Family',
-    date: new Date().toISOString().slice(0, 10),
-    imageUrl: '',
-    imageCloudinaryId: '',
-    isPublished: true,
-  });
-  const [updateMsg, setUpdateMsg] = useState('');
-  const [updatesList, setUpdatesList] = useState<Record<string, unknown>[]>([]);
-  const [updatesListLoading, setUpdatesListLoading] = useState(false);
-  const [updateImageBusy, setUpdateImageBusy] = useState(false);
   const [donationNotes, setDonationNotes] = useState<Record<string, string>>({});
   const [qrUploadingId, setQrUploadingId] = useState<string | null>(null);
 
@@ -117,10 +91,14 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       const list = d.qrCodes || [];
       setQrList(list);
       const edits: Record<string, string> = {};
+      const labels: Record<string, string> = {};
       for (const q of list) {
-        edits[String(q._id)] = (q.imageUrl as string) || '';
+        const id = String(q._id);
+        edits[id] = (q.imageUrl as string) || '';
+        labels[id] = String(q.displayName || '');
       }
       setQrEdits(edits);
+      setQrLabelEdits(labels);
     } catch {
       setQrList([]);
     }
@@ -139,19 +117,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   }, []);
 
-  const fetchUpdatesList = useCallback(async () => {
-    setUpdatesListLoading(true);
-    try {
-      const r = await fetch('/api/updates');
-      const d = await r.json();
-      setUpdatesList(d.updates || []);
-    } catch {
-      setUpdatesList([]);
-    } finally {
-      setUpdatesListLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchDonations();
     fetchQrs();
@@ -160,8 +125,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   useEffect(() => {
     if (activeTab === 'settings') fetchSettings();
     if (activeTab === 'medical') fetchMedicalList();
-    if (activeTab === 'updates') fetchUpdatesList();
-  }, [activeTab, fetchSettings, fetchMedicalList, fetchUpdatesList]);
+  }, [activeTab, fetchSettings, fetchMedicalList]);
 
   useEffect(() => {
     const m: Record<string, string> = {};
@@ -254,32 +218,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
-  const handleUpdateImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setUpdateImageBusy(true);
-    setUpdateMsg('');
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('type', 'update');
-      const r = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Upload failed');
-      setUpdateForm((f) => ({
-        ...f,
-        imageUrl: data.url,
-        imageCloudinaryId: data.publicId || '',
-      }));
-      setUpdateMsg('Image uploaded. Save the update when ready.');
-    } catch (err: unknown) {
-      setUpdateMsg(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUpdateImageBusy(false);
-    }
-  };
-
   const handleQrFile = async (qrId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -328,48 +266,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
-  const deleteUpdate = async (id: string) => {
-    if (!confirm('Delete this update?')) return;
-    try {
-      const r = await fetch(`/api/updates/${id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error('delete failed');
-      fetchUpdatesList();
-    } catch (e) {
-      console.error(e);
-      alert('Delete failed');
-    }
-  };
-
-  const toggleUpdatePublished = async (id: string, isPublished: boolean) => {
-    try {
-      await fetch(`/api/updates/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublished: !isPublished }),
-      });
-      fetchUpdatesList();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const chartData = useMemo(() => {
-    const confirmed = donations.filter((d) => d.status === 'CONFIRMED');
-    const map = new Map<string, number>();
-    for (const d of confirmed) {
-      const dt = new Date((d.donationDate as string) || (d.createdAt as string));
-      const key = dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-      map.set(key, (map.get(key) || 0) + Number(d.amount || 0));
-    }
-    const rows = Array.from(map.entries()).map(([date, amount]) => ({ date, amount }));
-    return rows.length ? rows : [{ date: '—', amount: 0 }];
-  }, [donations]);
-
-  const qrCodeStats = useMemo(
-    () => qrList.map((q) => ({ name: String(q.displayName), scans: Number(q.scannedCount) || 0 })),
-    [qrList]
-  );
-
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!settings) return;
@@ -403,16 +299,34 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
   const saveQr = async (id: string) => {
     try {
+      const label = (qrLabelEdits[id] || '').trim();
       const r = await fetch(`/api/qr-codes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: qrEdits[id] || '' }),
+        body: JSON.stringify({
+          imageUrl: qrEdits[id] || '',
+          ...(label.length > 0 ? { displayName: label } : {}),
+        }),
       });
       if (!r.ok) throw new Error('patch failed');
       await fetchQrs();
     } catch (e) {
       console.error(e);
       alert('Could not save QR row');
+    }
+  };
+
+  const addQrSlot = async () => {
+    setQrAddBusy(true);
+    try {
+      const r = await fetch('/api/qr-codes', { method: 'POST' });
+      if (!r.ok) throw new Error('create failed');
+      await fetchQrs();
+    } catch (e) {
+      console.error(e);
+      alert('Could not add QR slot. Stay logged in and try again.');
+    } finally {
+      setQrAddBusy(false);
     }
   };
 
@@ -457,33 +371,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
-  const submitUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdateMsg('');
-    try {
-      const r = await fetch('/api/updates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...updateForm,
-          date: new Date(updateForm.date).toISOString(),
-          imageUrl: updateForm.imageUrl || undefined,
-          imageCloudinaryId: updateForm.imageCloudinaryId || undefined,
-        }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setUpdateMsg(j.error || 'Failed');
-        return;
-      }
-      setUpdateMsg('Published.');
-      setUpdateForm((f) => ({ ...f, title: '', content: '', imageUrl: '', imageCloudinaryId: '' }));
-      fetchUpdatesList();
-    } catch {
-      setUpdateMsg('Network error');
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
@@ -495,80 +382,89 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   return (
     <div>
       {activeTab === 'overview' && (
-        <div className="space-y-8">
-          <h2 className="text-3xl font-serif font-bold text-foreground">Overview</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-card rounded-xl border border-border p-6 border-l-4 border-l-primary shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Total raised (confirmed)</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">
-                    ₹{(stats.totalAmount / 100000).toFixed(2)}L
-                  </p>
-                </div>
-                <DollarSign className="w-8 h-8 text-primary" />
-              </div>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-foreground">Overview</h2>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xl text-pretty">
+                Donation intents from the site. Approve or edit rows under <strong>Donations</strong>.
+              </p>
             </div>
-
-            <div className="bg-card rounded-xl border border-border p-6 border-l-4 border-l-primary/60 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Rows in table</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">{stats.totalDonations}</p>
-                </div>
-                <Heart className="w-8 h-8 text-primary" />
-              </div>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6 border-l-4 border-l-muted-foreground/40 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Confirmed gifts</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">{stats.donorCount}</p>
-                </div>
-                <Users className="w-8 h-8 text-primary" />
-              </div>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6 border-l-4 border-l-amber-500/80 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Pending</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">{stats.pendingDonations}</p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-amber-600" />
-              </div>
+            <div className="bg-card border border-border rounded-xl px-6 py-4 shadow-sm shrink-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Total collected (confirmed)
+              </p>
+              <p className="text-2xl font-bold text-primary mt-1">
+                ₹{Number(stats.totalAmount || 0).toLocaleString('en-IN')}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {stats.pendingDonations} pending · {stats.totalDonations} total rows
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Confirmed totals by day</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="amount" stroke="hsl(var(--primary))" name="Amount (₹)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-foreground mb-4">QR scan counters (from DB)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={qrCodeStats.length ? qrCodeStats : [{ name: '—', scans: 0 }]}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="scans" fill="hsl(var(--primary))" name="Scans" />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr className="bg-secondary/80 border-b border-border">
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Donor</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Email</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Phone</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Amount</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Status</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {donations.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                        No donations yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    donations.map((donation) => {
+                      const id = String(donation._id);
+                      return (
+                        <tr key={id} className="hover:bg-secondary/40">
+                          <td className="px-3 py-3 text-foreground">
+                            {(donation.isAnonymous as boolean) ? 'Anonymous' : String(donation.donorName)}
+                          </td>
+                          <td
+                            className="px-3 py-3 text-muted-foreground max-w-[160px] truncate"
+                            title={String(donation.donorEmail || '')}
+                          >
+                            {String(donation.donorEmail || '—')}
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                            {String(donation.donorPhone || '—')}
+                          </td>
+                          <td className="px-3 py-3 font-semibold text-foreground whitespace-nowrap">
+                            ₹{Number(donation.amount).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                donation.status === 'CONFIRMED'
+                                  ? 'bg-emerald-100 text-emerald-900'
+                                  : donation.status === 'PENDING'
+                                    ? 'bg-amber-100 text-amber-900'
+                                    : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {String(donation.status)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                            {new Date((donation.createdAt as string) || '').toLocaleDateString()}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -691,56 +587,103 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
       {activeTab === 'qr-codes' && (
         <div className="space-y-6">
-          <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
-          <p className="text-muted-foreground text-sm max-w-2xl text-pretty">
-            Upload a PNG/JPG from here (stored in Cloudinary under <code className="text-xs bg-secondary px-1 rounded">qr_codes</code>) or paste a URL manually. Donors only see active codes on the donate page.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {qrList.map((qr) => {
-              const id = String(qr._id);
-              return (
-                <div key={id} className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground">{String(qr.displayName)}</h3>
-                    <BarChart3 className="w-5 h-5 text-primary" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">UPI slot code: {String(qr.code)}</p>
-                  <div>
-                    <label className="block text-xs font-medium text-foreground mb-1">Upload image</label>
-                    <label className="inline-flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-sm">
-                      {qrUploadingId === id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4" />
-                      )}
-                      <span>Choose file</span>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        className="hidden"
-                        disabled={qrUploadingId === id}
-                        onChange={(e) => handleQrFile(id, e)}
-                      />
-                    </label>
-                  </div>
-                  <label className="block text-xs font-medium text-foreground">Or paste URL</label>
-                  <input
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                    value={qrEdits[id] ?? ''}
-                    onChange={(e) => setQrEdits((m) => ({ ...m, [id]: e.target.value }))}
-                    placeholder="https://res.cloudinary.com/..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveQr(id)}
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-95"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save URL
-                  </button>
-                </div>
-              );
-            })}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
+              <p className="text-muted-foreground text-sm max-w-2xl text-pretty mt-1">
+                One shared pool for all apps on the donate page. Google Pay, PhonePe, and Paytm each rotate through{' '}
+                <strong>every</strong> slot below every 2 minutes. Upload images to Cloudinary (
+                <code className="text-xs bg-secondary px-1 rounded">qr_codes</code>) or paste URLs.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addQrSlot}
+              disabled={qrAddBusy}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-95 disabled:opacity-50 shrink-0"
+            >
+              {qrAddBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Add slot
+            </button>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead>
+                  <tr className="bg-secondary/80 border-b border-border">
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">#</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Label</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Image URL</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Upload</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Save</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {[...qrList]
+                    .sort((a, b) => Number(a.code) - Number(b.code))
+                    .map((qr) => {
+                      const id = String(qr._id);
+                      return (
+                        <tr key={id} className="hover:bg-secondary/40 align-top">
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 font-mono text-foreground">
+                              <QrCode className="w-4 h-4 text-primary shrink-0" />
+                              {String(qr.code)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 min-w-[140px]">
+                            <input
+                              className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-sm"
+                              value={qrLabelEdits[id] ?? ''}
+                              onChange={(e) => setQrLabelEdits((m) => ({ ...m, [id]: e.target.value }))}
+                              placeholder="Label"
+                            />
+                          </td>
+                          <td className="px-3 py-3 min-w-[220px]">
+                            <input
+                              className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-xs"
+                              value={qrEdits[id] ?? ''}
+                              onChange={(e) => setQrEdits((m) => ({ ...m, [id]: e.target.value }))}
+                              placeholder="https://res.cloudinary.com/..."
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <label className="inline-flex items-center gap-2 px-2 py-1.5 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-xs">
+                              {qrUploadingId === id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="w-3.5 h-3.5" />
+                              )}
+                              <span>File</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                disabled={qrUploadingId === id}
+                                onChange={(e) => handleQrFile(id, e)}
+                              />
+                            </label>
+                          </td>
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              onClick={() => saveQr(id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:opacity-95"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              Save
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+            {qrList.length === 0 && (
+              <p className="p-6 text-sm text-muted-foreground text-center">No slots yet. Click &quot;Add slot&quot;.</p>
+            )}
           </div>
         </div>
       )}
@@ -920,150 +863,6 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                           type="button"
                           onClick={() => deleteMedicalReport(id)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'updates' && (
-        <div className="space-y-10">
-          <div>
-            <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Campaign updates</h2>
-            <p className="text-sm text-muted-foreground text-pretty max-w-2xl">
-              Create posts for the home page. Optional hero image: upload to Cloudinary from here or paste
-              a URL.
-            </p>
-          </div>
-
-          <form
-            onSubmit={submitUpdate}
-            className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4 max-w-2xl"
-          >
-            <h3 className="text-lg font-semibold text-foreground">New update</h3>
-            {updateMsg && <p className="text-sm text-primary">{updateMsg}</p>}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Hero image (optional)</label>
-              <label className="inline-flex items-center gap-2 px-4 py-2 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-sm">
-                {updateImageBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                <span>{updateImageBusy ? 'Uploading…' : 'Upload image'}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={updateImageBusy}
-                  onChange={handleUpdateImageFile}
-                />
-              </label>
-              {updateForm.imageUrl && (
-                <p className="text-xs text-muted-foreground mt-2 break-all truncate">{updateForm.imageUrl}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Or image URL</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
-                value={updateForm.imageUrl}
-                onChange={(e) => setUpdateForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://res.cloudinary.com/..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Title</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={updateForm.title}
-                onChange={(e) => setUpdateForm((f) => ({ ...f, title: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Body</label>
-              <textarea
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background min-h-[120px]"
-                value={updateForm.content}
-                onChange={(e) => setUpdateForm((f) => ({ ...f, content: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Author</label>
-                <input
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                  value={updateForm.author}
-                  onChange={(e) => setUpdateForm((f) => ({ ...f, author: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Date</label>
-                <input
-                  type="date"
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                  value={updateForm.date}
-                  onChange={(e) => setUpdateForm((f) => ({ ...f, date: e.target.value }))}
-                />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={updateForm.isPublished}
-                onChange={(e) => setUpdateForm((f) => ({ ...f, isPublished: e.target.checked }))}
-              />
-              Published (visible on site)
-            </label>
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
-            >
-              <Save className="w-4 h-4" />
-              Save update
-            </button>
-          </form>
-
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Existing updates</h3>
-            {updatesListLoading ? (
-              <p className="text-muted-foreground">Loading…</p>
-            ) : updatesList.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No updates yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {updatesList.map((u) => {
-                  const id = String(u._id);
-                  return (
-                    <div
-                      key={id}
-                      className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-4 border border-border rounded-lg bg-card"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{String(u.title)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {u.isPublished ? 'Published' : 'Draft'} · {String(u.author)}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{String(u.content)}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleUpdatePublished(id, Boolean(u.isPublished))}
-                          className="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-secondary"
-                        >
-                          {u.isPublished ? 'Unpublish' : 'Publish'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteUpdate(id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-destructive/10 text-destructive rounded-md"
                         >
                           <Trash2 className="w-3 h-3" />
                           Delete

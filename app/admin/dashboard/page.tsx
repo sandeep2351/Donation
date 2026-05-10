@@ -69,7 +69,6 @@ export default function AdminDashboardPage() {
     { id: 'donations', label: 'Donations' },
     { id: 'qr-codes', label: 'QR Codes' },
     { id: 'medical', label: 'Medical Reports' },
-    { id: 'updates', label: 'Updates' },
     { id: 'settings', label: 'Settings' },
   ];
 

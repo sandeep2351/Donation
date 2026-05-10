@@ -98,7 +98,7 @@ export type CampaignSettingsInput = z.infer<typeof campaignSettingsSchema>;
 export const qrCodeSchema = z.object({
   code: z.number(),
   upiString: z.string(),
-  provider: z.enum(['GOOGLE_PAY', 'PHONEPE', 'PAYTM']),
+  provider: z.enum(['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'POOL']),
   displayName: z.string(),
   isActive: z.boolean().default(true),
 });
@@ -108,6 +108,7 @@ export type QRCodeInput = z.infer<typeof qrCodeSchema>;
 export const qrCodeUpdateSchema = z.object({
   imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
   upiString: z.string().min(3).optional(),
+  displayName: z.string().min(1).max(120).optional(),
   isActive: z.boolean().optional(),
 });
 

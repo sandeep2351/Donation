@@ -2,12 +2,13 @@ import mongoose from 'mongoose';
 import { Admin, CampaignSettings, QRCode } from '@/lib/models';
 import { hashPassword } from '@/lib/auth';
 
-const DEFAULT_ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com';
+/** Default login id matches email unless `ADMIN_USERNAME` overrides (e.g. `admin`). */
+const DEFAULT_ADMIN_USER = process.env.ADMIN_USERNAME || DEFAULT_ADMIN_EMAIL;
 /** In production, set `ADMIN_PASSWORD` explicitly. Dev falls back so you can run locally quickly. */
 const DEFAULT_ADMIN_PASS =
   process.env.ADMIN_PASSWORD ||
   (process.env.NODE_ENV === 'production' ? '' : 'str@nger007');
-const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com';
 
 /**
  * Runs after MongoDB connects. Creates baseline campaign settings, demo admin (if none),
@@ -51,42 +52,31 @@ export async function ensureApplicationDefaults(): Promise<void> {
       await Admin.create({
         username: DEFAULT_ADMIN_USER,
         password: await hashPassword(DEFAULT_ADMIN_PASS),
-        email: DEFAULT_ADMIN_EMAIL,
+        email: DEFAULT_ADMIN_EMAIL.toLowerCase(),
       });
     }
   } else if (process.env.SYNC_ADMIN_PASSWORD_ON_BOOT === 'true' && DEFAULT_ADMIN_PASS) {
-    const existing = await Admin.findOne({ username: DEFAULT_ADMIN_USER });
+    const existing = await Admin.findOne({
+      $or: [{ username: DEFAULT_ADMIN_USER }, { email: DEFAULT_ADMIN_EMAIL.toLowerCase() }],
+    });
     if (existing) {
       existing.password = await hashPassword(DEFAULT_ADMIN_PASS);
-      existing.email = DEFAULT_ADMIN_EMAIL;
+      existing.email = DEFAULT_ADMIN_EMAIL.toLowerCase();
       await existing.save();
     }
   }
 
   const qrCount = await QRCode.countDocuments();
   if (qrCount === 0) {
-    await QRCode.insertMany([
-      {
-        code: 1,
-        upiString: 'family@paytm',
-        provider: 'GOOGLE_PAY',
-        displayName: 'Google Pay',
+    const placeholderUpi = 'upi://pay?pa=family@paytm&pn=Family&cu=INR';
+    await QRCode.insertMany(
+      Array.from({ length: 8 }, (_, i) => ({
+        code: i + 1,
+        upiString: placeholderUpi,
+        provider: 'POOL' as const,
+        displayName: `QR ${i + 1}`,
         isActive: true,
-      },
-      {
-        code: 2,
-        upiString: 'family@paytm',
-        provider: 'PHONEPE',
-        displayName: 'PhonePe',
-        isActive: true,
-      },
-      {
-        code: 3,
-        upiString: 'family@paytm',
-        provider: 'PAYTM',
-        displayName: 'Paytm',
-        isActive: true,
-      },
-    ]);
+      }))
+    );
   }
 }

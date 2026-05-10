@@ -24,6 +24,7 @@ export async function PATCH(
       doc.imageUrl = patch.imageUrl === '' ? null : patch.imageUrl;
     }
     if (patch.upiString !== undefined) doc.upiString = patch.upiString;
+    if (patch.displayName !== undefined) doc.displayName = patch.displayName;
     if (patch.isActive !== undefined) doc.isActive = patch.isActive;
 
     const qr = await QRCode.findByIdAndUpdate(id, { $set: doc }, { new: true }).lean();

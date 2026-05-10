@@ -65,7 +65,8 @@ const donationSchema = new Schema<IDonation>(
 export interface IQRCode extends Document {
   code: number;
   upiString: string;
-  provider: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM';
+  /** POOL = shared rotation slot; legacy rows may still use app-specific enums. */
+  provider: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'POOL';
   displayName: string;
   isActive: boolean;
   scannedCount: number;
@@ -79,7 +80,7 @@ const qrCodeSchema = new Schema<IQRCode>(
   {
     code: { type: Number, required: true, unique: true },
     upiString: { type: String, required: true },
-    provider: { type: String, enum: ['GOOGLE_PAY', 'PHONEPE', 'PAYTM'], required: true },
+    provider: { type: String, enum: ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'POOL'], required: true },
     displayName: { type: String, required: true },
     isActive: { type: Boolean, default: true },
     scannedCount: { type: Number, default: 0 },
@@ -215,7 +216,11 @@ const qrLogSchema = new Schema<IQRLog>(
 // Create or retrieve models
 export const Admin = mongoose.models.Admin || mongoose.model<IAdmin>('Admin', adminSchema);
 export const Donation = mongoose.models.Donation || mongoose.model<IDonation>('Donation', donationSchema);
-export const QRCode = mongoose.models.QRCode || mongoose.model<IQRCode>('QRCode', qrCodeSchema);
+// Next.js dev HMR reuses mongoose.models.* with the first-loaded schema; dropping avoids stale enums (e.g. missing POOL).
+if (mongoose.models.QRCode) {
+  delete mongoose.models.QRCode;
+}
+export const QRCode = mongoose.model<IQRCode>('QRCode', qrCodeSchema);
 export const MedicalReport = mongoose.models.MedicalReport || mongoose.model<IMedicalReport>('MedicalReport', medicalReportSchema);
 export const CampaignUpdate = mongoose.models.CampaignUpdate || mongoose.model<ICampaignUpdate>('CampaignUpdate', campaignUpdateSchema);
 export const CampaignSettings = mongoose.models.CampaignSettings || mongoose.model<ICampaignSettings>('CampaignSettings', campaignSettingsSchema);

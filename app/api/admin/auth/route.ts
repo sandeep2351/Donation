@@ -1,11 +1,10 @@
 import { connectDB } from '@/lib/mongodb';
 import { Admin } from '@/lib/models';
-import { 
-  verifyPassword, 
-  generateToken, 
-  setAuthCookie, 
-  hashPassword,
-  removeAuthCookie 
+import {
+  verifyPassword,
+  generateToken,
+  setAuthCookie,
+  removeAuthCookie,
 } from '@/lib/auth';
 import { adminLoginSchema } from '@/lib/validations';
 import { getCurrentAdmin } from '@/lib/auth';
@@ -32,8 +31,14 @@ export async function POST(request: NextRequest) {
 
     if (action === 'login') {
       const { username, password } = adminLoginSchema.parse(body);
-      
-      const admin = await Admin.findOne({ username });
+      const loginId = username.trim();
+      const emailRegex = new RegExp(
+        `^${loginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+        'i'
+      );
+      const admin = await Admin.findOne({
+        $or: [{ username: loginId }, { email: emailRegex }],
+      });
       if (!admin) {
         return NextResponse.json(
           { error: 'Invalid credentials' },
@@ -78,59 +83,12 @@ export async function POST(request: NextRequest) {
     }
     
     if (action === 'register') {
-      // Only allow first-time registration if no admin exists
-      const existingAdmin = await Admin.findOne({});
-      if (existingAdmin) {
-        return NextResponse.json(
-          { error: 'Admin already exists' },
-          { status: 403 }
-        );
-      }
-      
-      const { username, password } = adminLoginSchema.parse({
-        username: body.username,
-        password: body.password,
-      });
-      const email =
-        typeof body.email === 'string' && body.email.trim() ? body.email.trim() : undefined;
-
-      if (!email) {
-        return NextResponse.json(
-          { error: 'Email is required' },
-          { status: 400 }
-        );
-      }
-      
-      const hashedPassword = await hashPassword(password);
-      
-      const admin = new Admin({
-        username,
-        password: hashedPassword,
-        email,
-      });
-      
-      await admin.save();
-      
-      const token = generateToken({
-        username: admin.username,
-        adminId: admin._id.toString(),
-      });
-      
-      await setAuthCookie(token);
-      
       return NextResponse.json(
-        {
-          success: true,
-          admin: {
-            id: admin._id,
-            username: admin.username,
-            email: admin.email,
-          },
-        },
-        { status: 201 }
+        { error: 'Registration is disabled. Use the configured admin account.' },
+        { status: 403 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Invalid action' },
       { status: 400 }
