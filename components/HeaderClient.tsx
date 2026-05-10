@@ -46,9 +46,12 @@ export default function HeaderClient({ title, tagline }: { title: string; taglin
           <div className="hidden md:flex items-center gap-2">
             <StableLink
               href="/admin"
-              className="px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-full hover:bg-secondary transition-colors"
+              aria-label="Open admin dashboard"
+              title="Admin dashboard"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-full hover:bg-secondary hover:text-foreground transition-colors"
             >
-              Staff
+              <Shield className="w-4 h-4" />
+              Admin
             </StableLink>
             <StableLink
               href="/donate"
@@ -95,11 +98,12 @@ export default function HeaderClient({ title, tagline }: { title: string; taglin
             </StableLink>
             <StableLink
               href="/admin"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-secondary"
+              aria-label="Open admin dashboard"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-secondary hover:text-foreground"
               onClick={() => setMobileMenuOpen(false)}
             >
               <Shield className="w-4 h-4" />
-              Staff login
+              Admin dashboard
             </StableLink>
           </div>
         )}

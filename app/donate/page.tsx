@@ -13,8 +13,23 @@ type QrRow = {
   isActive?: boolean;
 };
 
-/** Same QR images rotate in the pool regardless of which UPI app the donor uses to scan. */
+/** All three UPI lanes share one timer; each lane uses a fixed offset into the pool so slots can differ at the same moment. */
 const ROTATE_POOL_MS = 30_000;
+
+const UPI_APP_CHOICES = [
+  { id: 'GOOGLE_PAY', label: 'Google Pay' },
+  { id: 'PHONEPE', label: 'PhonePe' },
+  { id: 'PAYTM', label: 'Paytm' },
+] as const;
+
+type UpiAppId = (typeof UPI_APP_CHOICES)[number]['id'];
+
+/** Stagger: Google Pay → pool[i], PhonePe → pool[i+1], Paytm → pool[i+2] (mod pool size). */
+const APP_SLOT_OFFSET: Record<UpiAppId, number> = {
+  GOOGLE_PAY: 0,
+  PHONEPE: 1,
+  PAYTM: 2,
+};
 
 export default function DonatePage() {
   const [customAmount, setCustomAmount] = useState('');
@@ -27,7 +42,9 @@ export default function DonatePage() {
   const [error, setError] = useState('');
   const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
   const [qrLoading, setQrLoading] = useState(true);
-  const [poolIndex, setPoolIndex] = useState(0);
+  /** Increments every 30s when the pool has more than one slot; each app uses (tick + offset) % pool size. */
+  const [rotationTick, setRotationTick] = useState(0);
+  const [selectedUpiApp, setSelectedUpiApp] = useState<UpiAppId>('GOOGLE_PAY');
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
@@ -60,7 +77,7 @@ export default function DonatePage() {
   useEffect(() => {
     if (poolLen <= 1) return;
     const t = setInterval(() => {
-      setPoolIndex((i) => (i + 1) % poolLen);
+      setRotationTick((x) => x + 1);
     }, ROTATE_POOL_MS);
     return () => clearInterval(t);
   }, [poolLen]);
@@ -68,7 +85,10 @@ export default function DonatePage() {
   const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
   const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
 
-  const activeQr = poolLen > 0 ? qrPool[poolIndex % poolLen] : null;
+  const slotIndexForApp = (app: UpiAppId) =>
+    poolLen === 0 ? 0 : (rotationTick + APP_SLOT_OFFSET[app]) % poolLen;
+
+  const activeQr = poolLen === 0 ? null : qrPool[slotIndexForApp(selectedUpiApp)];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,8 +174,8 @@ export default function DonatePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance">Donate</h1>
         <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
-          Choose an amount, then scan any active QR below. If several are configured, the code cycles on a timer so
-          load is shared across slots.
+          Choose an amount and a payment app. Each app rotates through your QR pool every 30 seconds on its own lane
+          (staggered so different apps can show different slots at the same time when you have several codes).
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -277,9 +297,8 @@ export default function DonatePage() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
                 {poolLen > 1 && (
-                  <p className="text-xs text-muted-foreground">
-                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · next code in {ROTATE_POOL_MS / 1000}{' '}
-                    seconds.
+                  <p className="text-xs text-muted-foreground text-right max-w-xs sm:max-w-none">
+                    Pool: {poolLen} slots · each app advances every {ROTATE_POOL_MS / 1000}s (lanes staggered).
                   </p>
                 )}
               </div>
@@ -293,6 +312,48 @@ export default function DonatePage() {
                 </p>
               ) : (
                 <>
+                  <div className="mb-6">
+                    <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-sm text-foreground text-pretty">
+                        These QR codes work with <strong>any UPI app</strong>—Google Pay, PhonePe, Paytm, BHIM, your
+                        bank app, and more. Pick the one you prefer below.
+                      </p>
+                    </div>
+                    <p className="text-sm font-medium text-foreground mb-3">Pay with</p>
+                    <div
+                      className="flex flex-wrap gap-2"
+                      role="tablist"
+                      aria-label="Choose UPI app"
+                    >
+                      {UPI_APP_CHOICES.map((app) => {
+                        const selected = selectedUpiApp === app.id;
+                        return (
+                          <button
+                            key={app.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={selected}
+                            onClick={() => setSelectedUpiApp(app.id)}
+                            className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                              selected
+                                ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30'
+                                : 'border-border bg-background text-foreground hover:bg-secondary/80'
+                            }`}
+                          >
+                            {app.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground text-pretty">
+                      Open{' '}
+                      {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your UPI app'} and scan the QR
+                      below. Each app rotates through the pool on its own lane, so different apps may show different
+                      QRs at the same moment.
+                    </p>
+                  </div>
+
                   <div className="flex flex-col items-center">
                     <QRCodeDisplay
                       qrCode={{
@@ -308,7 +369,10 @@ export default function DonatePage() {
               <div className="mt-8 p-6 bg-secondary/80 border border-border rounded-lg">
                 <h3 className="font-semibold text-foreground mb-3">How UPI works here</h3>
                 <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside text-pretty">
-                  <li>Open your UPI app and scan the code.</li>
+                  <li>
+                    Open{' '}
+                    {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your UPI app'} and scan the code.
+                  </li>
                   <li>Send exactly ₹{finalAmount > 0 ? finalAmount.toLocaleString('en-IN') : '…'} when you pay.</li>
                   <li>This page records an intent for the demo; reconcile real bank/UPI statements in admin.</li>
                 </ol>
