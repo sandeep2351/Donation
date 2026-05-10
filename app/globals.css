@@ -120,7 +120,37 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: clip;
+    scroll-padding-top: calc(5rem + env(safe-area-inset-top, 0px));
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-clip;
+  }
+
+  /* Avoid iOS auto-zoom on focused fields; roomy tap targets without affecting checkboxes/radios */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not(
+      [type='hidden']
+    ),
+  textarea,
+  select {
+    @apply max-w-full min-h-11 text-base md:text-sm;
+    font-size: max(16px, 100%);
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button,
+  [type='submit'],
+  [type='reset'] {
+    touch-action: manipulation;
   }
 }

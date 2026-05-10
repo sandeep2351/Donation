@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-dvh min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="animate-spin">
           <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full" />
         </div>
@@ -73,11 +73,11 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-dvh min-h-screen w-full min-w-0 flex-col bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header className="shrink-0 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85 border-b border-gray-200 sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center min-h-14 sm:h-16 py-1 sm:py-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">✓</span>
@@ -98,7 +98,9 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="sm:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="sm:hidden p-2.5 text-gray-700 hover:bg-gray-100 rounded-lg min-h-11 min-w-11 flex items-center justify-center"
+                aria-expanded={mobileMenuOpen}
+                aria-controls="admin-mobile-nav"
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5" />
@@ -111,7 +113,10 @@ export default function AdminDashboardPage() {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="sm:hidden pb-4 border-t border-gray-200">
+            <div
+              id="admin-mobile-nav"
+              className="sm:hidden pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-gray-200 pt-2"
+            >
               <nav className="space-y-1">
                 {tabs.map((tab) => (
                   <button
@@ -142,9 +147,9 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col sm:flex-row">
         {/* Sidebar Navigation - Desktop */}
-        <div className="hidden sm:block w-56 bg-white border-r border-gray-200 min-h-screen">
+        <div className="hidden sm:block w-56 shrink-0 bg-white border-r border-gray-200 sm:min-h-0">
           <nav className="p-6 space-y-2">
             {tabs.map((tab) => (
               <button
@@ -163,7 +168,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-4 sm:p-8">
+        <div className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom,0px)+0.75rem)]">
           <AdminDashboardClient activeTab={activeTab} />
         </div>
       </div>

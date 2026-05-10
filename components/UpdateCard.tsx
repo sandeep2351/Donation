@@ -22,9 +22,9 @@ export default function UpdateCard({
   });
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="bg-card rounded-lg border border-border overflow-hidden hover:shadow-lg transition-shadow">
       {imageUrl && (
-        <div className="relative w-full h-48">
+        <div className="relative w-full h-40 sm:h-48">
           <Image
             src={imageUrl}
             alt={title}
@@ -35,18 +35,18 @@ export default function UpdateCard({
         </div>
       )}
 
-      <div className="p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
+      <div className="p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2 text-balance break-words">{title}</h3>
 
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           By {author} · {formatted}
         </p>
 
-        <p className="text-gray-700 leading-relaxed mb-4 line-clamp-3">
+        <p className="text-foreground/90 leading-relaxed mb-4 line-clamp-3 text-sm sm:text-base">
           {content}
         </p>
 
-        <span className="text-emerald-600 font-medium text-sm inline-flex items-center gap-1">
+        <span className="text-primary font-medium text-sm inline-flex items-center gap-1">
           Read more
           <span>→</span>
         </span>

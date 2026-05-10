@@ -426,7 +426,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           </div>
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[720px]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
@@ -511,7 +511,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           </p>
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
@@ -630,7 +630,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           </div>
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
@@ -744,7 +744,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           </div>
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-sm min-w-[800px]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
@@ -851,7 +851,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               onClick={closeMedicalModal}
             >
               <div
-                className="bg-card border border-border rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+                className="bg-card border border-border rounded-xl shadow-lg w-full max-w-2xl max-h-[min(90vh,100dvh-2rem)] overflow-y-auto p-4 sm:p-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-start gap-4 mb-4">
@@ -932,7 +932,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-1">Report date</label>
                       <input

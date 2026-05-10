@@ -99,11 +99,11 @@ export default function MedicalReportCard({
           </div>
         </div>
         {documentUrl && (
-          <div className="flex shrink-0 items-center justify-end gap-2 sm:pt-0.5">
+          <div className="flex w-full flex-wrap shrink-0 items-stretch gap-2 sm:w-auto sm:justify-end sm:items-center sm:pt-0.5">
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+              className="inline-flex flex-1 min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 sm:flex-initial touch-manipulation"
             >
               <Eye className="h-4 w-4 shrink-0" aria-hidden />
               Preview
@@ -113,7 +113,7 @@ export default function MedicalReportCard({
               download={documentFileName || undefined}
               title={documentFileName ? `Download ${documentFileName}` : 'Download file'}
               aria-label={documentFileName ? `Download ${documentFileName}` : 'Download file'}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 touch-manipulation sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
             >
               <Download className="h-4 w-4" aria-hidden />
             </a>
@@ -165,7 +165,7 @@ export default function MedicalReportCard({
             aria-label="Close preview"
             onClick={() => setPreviewOpen(false)}
           />
-          <div className="relative z-10 flex max-h-[min(92vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+          <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] sm:max-h-[min(92vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-none sm:rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
               <h4 id="medical-preview-title" className="min-w-0 truncate text-base font-semibold text-gray-900">
                 {title}
@@ -188,7 +188,11 @@ export default function MedicalReportCard({
                   className="mx-auto max-h-[min(70vh,600px)] w-auto max-w-full object-contain"
                 />
               ) : (
-                <iframe title={title} src={embedSrc} className="h-[min(70vh,600px)] w-full border-0 bg-white" />
+                <iframe
+                  title={title}
+                  src={embedSrc}
+                  className="min-h-[50dvh] h-[calc(100dvh-14rem)] sm:h-[min(70vh,600px)] sm:min-h-0 w-full border-0 bg-white"
+                />
               )}
             </div>
           </div>

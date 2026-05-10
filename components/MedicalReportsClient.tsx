@@ -51,8 +51,8 @@ export default function MedicalReportsClient() {
   }, [load]);
 
   return (
-    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 md:py-24">
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4 text-center text-balance">
           Medical reports
         </h1>
@@ -61,7 +61,7 @@ export default function MedicalReportsClient() {
           PDFs. If a section is empty, the family has not published anything in that category yet.
         </p>
 
-        <div className="bg-card border border-border rounded-xl p-6 mb-10">
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-6 mb-8 sm:mb-10">
           <div className="flex gap-3">
             <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
@@ -111,7 +111,7 @@ export default function MedicalReportsClient() {
                 key={report._id}
                 className="bg-card rounded-xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="p-6 border-b border-border">
+                <div className="p-4 sm:p-6 border-b border-border">
                   <MedicalReportCard
                     title={report.title}
                     category={report.category}
@@ -130,8 +130,10 @@ export default function MedicalReportsClient() {
           </div>
         )}
 
-        <div className="bg-card rounded-xl border border-border p-8">
-          <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Why we publish these</h2>
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-8">
+          <h2 className="text-xl sm:text-2xl font-serif font-bold text-foreground mb-4 sm:mb-6">
+            Why we publish these
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-muted-foreground leading-relaxed">
             <p>So you can see the medical reasoning behind the ask—not just a headline.</p>
             <p>So you understand how serious and expensive transplant work really is.</p>

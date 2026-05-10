@@ -66,8 +66,8 @@ export default function ContactPage() {
   const cityLine = settings?.hospitalName ? `Near ${settings.hospitalName}` : 'India';
 
   return (
-    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 md:py-24">
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4 text-center text-balance">
           Contact the family
         </h1>
@@ -116,7 +116,7 @@ export default function ContactPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-8 shadow-sm min-w-0">
             <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Write to us</h2>
 
             {submitted && (

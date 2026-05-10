@@ -45,8 +45,8 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-dvh min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center px-4 py-10 sm:py-12 pb-[max(2.5rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))]">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-5 sm:p-8">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg">✓</span>

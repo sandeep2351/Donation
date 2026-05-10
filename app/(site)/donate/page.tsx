@@ -152,9 +152,9 @@ export default function DonatePage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-8 sm:py-12">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <div className="bg-card rounded-xl border border-border shadow-sm p-6 sm:p-12 text-center">
             <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
             <h2 className="text-3xl font-serif font-bold text-foreground mb-3">Thank you</h2>
             <p className="text-muted-foreground mb-2 text-pretty">
@@ -170,16 +170,18 @@ export default function DonatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance">Donate</h1>
-        <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-8 sm:py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-[env(safe-area-inset-bottom,0px)]">
+        <h1 className="text-3xl sm:text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance px-1">
+          Donate
+        </h1>
+        <p className="text-base sm:text-lg text-muted-foreground text-center mb-8 sm:mb-12 max-w-2xl mx-auto text-pretty leading-relaxed px-1">
           Choose an amount and a payment app. Each app rotates through your QR pool every 30 seconds on its own lane
           (staggered so different apps can show different slots at the same time when you have several codes).
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-1 bg-card rounded-xl border border-border p-8 h-fit shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
+          <div className="lg:col-span-1 bg-card rounded-xl border border-border p-4 sm:p-8 h-fit shadow-sm">
             <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Amount</h2>
 
             <form onSubmit={handleSubmit}>
@@ -292,8 +294,8 @@ export default function DonatePage() {
             </form>
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+          <div className="lg:col-span-2 min-w-0">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-8 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
                 {poolLen > 1 && (
@@ -381,7 +383,7 @@ export default function DonatePage() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-8">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-8">
           <h2 className="text-2xl font-serif font-bold text-foreground mb-4">Transparency</h2>
           <p className="text-muted-foreground text-sm leading-relaxed text-pretty max-w-3xl">
             Totals on the home page are calculated from confirmed donations in the database. Medical files and QR

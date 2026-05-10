@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import { getCampaignBranding } from '@/lib/campaign-branding'
 import './globals.css'
 
@@ -40,8 +38,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#6b9d7d',
-  userScalable: true,
 }
 
 export default function RootLayout({
@@ -52,14 +51,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background" suppressHydrationWarning>
       <body
-        className="font-sans antialiased bg-background flex flex-col min-h-screen"
+        className="font-sans antialiased bg-background flex min-h-dvh min-h-screen flex-col"
         suppressHydrationWarning
       >
-        <Header />
-        <main className="flex-1">
-          {children}
-        </main>
-        <Footer />
+        {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

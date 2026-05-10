@@ -28,8 +28,8 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="bg-foreground text-background border-t border-border">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <footer className="bg-foreground text-background border-t border-border pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div>
             <div className="flex items-center gap-2 mb-4">
