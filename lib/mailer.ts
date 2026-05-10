@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
 const adminInbox = process.env.ADMIN_INBOX_EMAIL || 'sandeepkalyan299@gmail.com';
 
@@ -60,9 +59,96 @@ function buildContactBodies(payload: {
   return { text, html };
 }
 
+function buildContactPlainText(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}) {
+  return buildContactBodies(payload).text;
+}
+
+async function sendWithSmtp(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const transport = getMailer();
+  if (!transport) {
+    return { ok: false, error: 'SMTP is not configured (missing SMTP_HOST, SMTP_USER, or SMTP_PASS).' };
+  }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
+  const { text, html } = buildContactBodies(payload);
+  try {
+    await transport.sendMail({
+      from: `"${payload.name}" <${from}>`,
+      to: adminInbox,
+      replyTo: payload.email,
+      subject: `[Campaign contact] ${payload.subject}`,
+      text,
+      html,
+    });
+    return { ok: true };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : 'SMTP send failed' };
+  }
+}
+
 /**
- * Sends contact form mail. Easiest setup: **Resend** (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`).
- * Fallback: classic SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`).
+ * Web3Forms (https://web3forms.com) — alternative to SMTP. Delivers to the inbox tied to your access key.
+ * Called only after SMTP fails or is not configured.
+ */
+async function sendWithWeb3Forms(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const accessKey = process.env.WEB3FORMS_ACCESS_KEY?.trim();
+  if (!accessKey) {
+    return { ok: false, error: 'WEB3FORMS_ACCESS_KEY is not set.' };
+  }
+
+  const message = buildContactPlainText(payload);
+
+  try {
+    const res = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        access_key: accessKey,
+        subject: `[Campaign contact] ${payload.subject}`,
+        name: payload.name,
+        email: payload.email,
+        message,
+        ...(payload.phone ? { phone: payload.phone } : {}),
+      }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      message?: string;
+    };
+
+    if (res.ok && data.success === true) {
+      return { ok: true };
+    }
+
+    const msg = data.message || `HTTP ${res.status}`;
+    return { ok: false, error: msg };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Web3Forms request failed' };
+  }
+}
+
+/**
+ * Contact form delivery order (see `.env`):
+ * 1. **Primary** — SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, …)
+ * 2. **Alternative** — Web3Forms (`WEB3FORMS_ACCESS_KEY`) if SMTP is missing or errors
  */
 export async function sendContactEmail(payload: {
   name: string;
@@ -71,65 +157,27 @@ export async function sendContactEmail(payload: {
   subject: string;
   message: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const resendKey = process.env.RESEND_API_KEY?.trim();
-  if (resendKey) {
-    return sendWithResend(payload, resendKey);
-  }
-
-  const transport = getMailer();
-  if (!transport) {
-    return {
-      ok: false,
-      error:
-        'Email not configured. Add RESEND_API_KEY (easiest) at https://resend.com — or set SMTP_HOST, SMTP_USER, and SMTP_PASS.',
-    };
-  }
-
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
-  const { text, html } = buildContactBodies(payload);
-
-  await transport.sendMail({
-    from: `"${payload.name}" <${from}>`,
-    to: adminInbox,
-    replyTo: payload.email,
-    subject: `[Campaign contact] ${payload.subject}`,
-    text,
-    html,
-  });
-
-  return { ok: true };
-}
-
-async function sendWithResend(
-  payload: {
-    name: string;
-    email: string;
-    phone?: string;
-    subject: string;
-    message: string;
-  },
-  apiKey: string
-): Promise<{ ok: boolean; error?: string }> {
-  /** Verified domain address, or Resend’s test sender (limited; verify your domain for production). */
-  const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'onboarding@resend.dev';
-  const { text, html } = buildContactBodies(payload);
-
-  try {
-    const resend = new Resend(apiKey);
-    const { error } = await resend.emails.send({
-      from: `Campaign site <${fromEmail}>`,
-      to: [adminInbox],
-      replyTo: payload.email,
-      subject: `[Campaign contact] ${payload.subject}`,
-      text,
-      html,
-    });
-
-    if (error) {
-      return { ok: false, error: error.message };
-    }
+  // 1. Primary: SMTP
+  const smtp = await sendWithSmtp(payload);
+  if (smtp.ok) {
     return { ok: true };
-  } catch (e: unknown) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Resend request failed' };
   }
+
+  // 2. Alternative: Web3Forms
+  const web3 = await sendWithWeb3Forms(payload);
+  if (web3.ok) {
+    return { ok: true };
+  }
+
+  const parts = [
+    smtp.error && `SMTP: ${smtp.error}`,
+    web3.error && `Web3Forms: ${web3.error}`,
+  ].filter(Boolean);
+
+  return {
+    ok: false,
+    error:
+      parts.join(' · ') ||
+      'Could not send message. Configure SMTP_* (Gmail app password) and/or WEB3FORMS_ACCESS_KEY.',
+  };
 }
