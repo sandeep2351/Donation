@@ -1,12 +1,8 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import './globals.css'
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Help Dad\'s Surgery - Lung Transplant Fundraising',
@@ -47,8 +43,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
-      <body className="font-sans antialiased bg-background flex flex-col min-h-screen">
+    <html lang="en" className="bg-background" suppressHydrationWarning>
+      <body
+        className="font-sans antialiased bg-background flex flex-col min-h-screen"
+        suppressHydrationWarning
+      >
         <Header />
         <main className="flex-1">
           {children}

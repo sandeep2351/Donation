@@ -1,21 +1,31 @@
-import Link from 'next/link';
+'use client';
+
+import { useEffect, useState } from 'react';
+import StableLink from '@/components/StableLink';
 import { Heart, Mail, Phone } from 'lucide-react';
-import { connectDB } from '@/lib/mongodb';
-import { CampaignSettings } from '@/lib/models';
 
-export default async function Footer() {
-  const currentYear = new Date().getFullYear();
-  let email = process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com';
-  let phone = '+91 00000 00000';
+const DEFAULT_EMAIL = 'sandeepkalyan299@gmail.com';
+const DEFAULT_PHONE = '+91 00000 00000';
 
-  try {
-    await connectDB();
-    const s = await CampaignSettings.findOne().sort({ createdAt: 1 }).lean();
-    if (s?.emailContact) email = s.emailContact;
-    if (s?.phoneContact) phone = s.phoneContact;
-  } catch {
-    /* offline build / missing URI */
-  }
+export default function Footer() {
+  const year = new Date().getFullYear();
+  const [email, setEmail] = useState(DEFAULT_EMAIL);
+  const [phone, setPhone] = useState(DEFAULT_PHONE);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d?.settings) return;
+        if (d.settings.emailContact) setEmail(d.settings.emailContact);
+        if (d.settings.phoneContact) setPhone(d.settings.phoneContact);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <footer className="bg-foreground text-background border-t border-border">
@@ -37,24 +47,19 @@ export default async function Footer() {
             <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Navigate</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/" className="text-background/70 hover:text-background transition-colors text-sm">
                   Home
-                </Link>
+                </StableLink>
               </li>
               <li>
-                <Link href="/donate" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/donate" className="text-background/70 hover:text-background transition-colors text-sm">
                   Donate
-                </Link>
+                </StableLink>
               </li>
               <li>
-                <Link href="/updates" className="text-background/70 hover:text-background transition-colors text-sm">
-                  Updates
-                </Link>
-              </li>
-              <li>
-                <Link href="/medical" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/medical" className="text-background/70 hover:text-background transition-colors text-sm">
                   Medical
-                </Link>
+                </StableLink>
               </li>
             </ul>
           </div>
@@ -63,19 +68,19 @@ export default async function Footer() {
             <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Support</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/contact" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/contact" className="text-background/70 hover:text-background transition-colors text-sm">
                   Contact
-                </Link>
+                </StableLink>
               </li>
               <li>
-                <Link href="/privacy" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/privacy" className="text-background/70 hover:text-background transition-colors text-sm">
                   Privacy
-                </Link>
+                </StableLink>
               </li>
               <li>
-                <Link href="/terms" className="text-background/70 hover:text-background transition-colors text-sm">
+                <StableLink href="/terms" className="text-background/70 hover:text-background transition-colors text-sm">
                   Terms
-                </Link>
+                </StableLink>
               </li>
             </ul>
           </div>
@@ -86,6 +91,7 @@ export default async function Footer() {
               <a
                 href={`mailto:${email}`}
                 className="flex items-center gap-2 text-background/70 hover:text-background transition-colors text-sm break-all"
+                suppressHydrationWarning
               >
                 <Mail className="w-4 h-4 shrink-0" />
                 <span>{email}</span>
@@ -93,6 +99,7 @@ export default async function Footer() {
               <a
                 href={`tel:${phone.replace(/\s/g, '')}`}
                 className="flex items-center gap-2 text-background/70 hover:text-background transition-colors text-sm"
+                suppressHydrationWarning
               >
                 <Phone className="w-4 h-4 shrink-0" />
                 <span>{phone}</span>
@@ -104,7 +111,7 @@ export default async function Footer() {
         <div className="border-t border-background/20 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-background/70 text-sm text-center md:text-left">
-              &copy; {currentYear} Campaign site. Built for clarity, not noise.
+              &copy; {year} Campaign site. Built for clarity, not noise.
             </p>
           </div>
         </div>

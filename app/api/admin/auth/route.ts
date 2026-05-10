@@ -87,12 +87,14 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      const { username, password, email } = adminLoginSchema.parse({
+      const { username, password } = adminLoginSchema.parse({
         username: body.username,
         password: body.password,
       });
-      
-      if (!email || typeof email !== 'string') {
+      const email =
+        typeof body.email === 'string' && body.email.trim() ? body.email.trim() : undefined;
+
+      if (!email) {
         return NextResponse.json(
           { error: 'Email is required' },
           { status: 400 }

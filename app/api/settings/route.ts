@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (!settings) {
       settings = new CampaignSettings({
         targetAmount: 2000000,
-        campaignTitle: "Help Dad's Surgery",
+        campaignTitle: "Family Fundraiser",
         campaignDescription: 'Supporting our father\'s lung transplant surgery.',
         fatherName: 'Father Name',
         fatherAge: 50,

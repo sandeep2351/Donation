@@ -4,7 +4,8 @@ import UpdateCard from '@/components/UpdateCard';
 import { getHomePageData } from '@/lib/campaign-public';
 import { Heart, Users, Check } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+/** Cache home briefly so navigation and repeat visits don’t hit Mongo on every request. */
+export const revalidate = 45;
 
 export default async function Home() {
   const data = await getHomePageData();
@@ -36,6 +37,7 @@ export default async function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
+              suppressHydrationWarning
               href="/donate"
               className="inline-flex items-center justify-center px-8 py-3.5 bg-primary text-primary-foreground rounded-full hover:shadow-xl transform hover:scale-[1.02] transition-all font-medium text-lg"
             >
@@ -43,6 +45,7 @@ export default async function Home() {
               Donate now
             </Link>
             <Link
+              suppressHydrationWarning
               href="/medical"
               className="inline-flex items-center justify-center px-8 py-3.5 border-2 border-primary text-primary rounded-full hover:bg-secondary transition-colors font-medium text-lg"
             >
@@ -129,6 +132,7 @@ export default async function Home() {
 
           <div className="mt-8 text-center">
             <Link
+              suppressHydrationWarning
               href="/donate"
               className="inline-block px-6 py-2.5 text-primary font-medium hover:text-accent transition-colors"
             >
@@ -162,14 +166,6 @@ export default async function Home() {
             </div>
           )}
 
-          <div className="text-center">
-            <Link
-              href="/updates"
-              className="inline-block px-6 py-2.5 text-primary font-medium hover:text-accent transition-colors"
-            >
-              All updates →
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -221,6 +217,7 @@ export default async function Home() {
             straight from your phone.
           </p>
           <Link
+            suppressHydrationWarning
             href="/donate"
             className="inline-flex items-center justify-center px-8 py-4 bg-primary-foreground text-primary rounded-full hover:shadow-lg transform hover:scale-[1.02] transition-all font-medium text-lg"
           >

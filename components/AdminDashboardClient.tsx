@@ -897,16 +897,16 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                           {String(r.category)} · {r.isPublic ? 'Public' : 'Hidden'} ·{' '}
                           {String(r.documentFileName || 'no file')}
                         </p>
-                        {r.documentUrl && (
+                        {typeof r.documentUrl === 'string' && r.documentUrl ? (
                           <a
-                            href={String(r.documentUrl)}
+                            href={r.documentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline break-all"
                           >
                             Open file
                           </a>
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
                         <button
@@ -939,7 +939,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           <div>
             <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Campaign updates</h2>
             <p className="text-sm text-muted-foreground text-pretty max-w-2xl">
-              Create posts for the home and updates pages. Optional hero image: upload to Cloudinary from here or paste
+              Create posts for the home page. Optional hero image: upload to Cloudinary from here or paste
               a URL.
             </p>
           </div>

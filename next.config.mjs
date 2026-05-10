@@ -9,8 +9,14 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  async redirects() {
+    return [{ source: '/updates', destination: '/', permanent: false }];
   },
   images: {
     unoptimized: true,

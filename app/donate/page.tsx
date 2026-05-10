@@ -1,22 +1,41 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+
+type QrProvider = 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM';
 
 type QrRow = {
   _id: string;
   code: number;
   displayName: string;
-  provider: string;
+  provider: QrProvider;
   imageUrl?: string | null;
   isActive?: boolean;
 };
 
-const ROTATE_MS = 9000;
+const PROVIDER_ORDER: QrProvider[] = ['GOOGLE_PAY', 'PHONEPE', 'PAYTM'];
+
+/** Rotate between multiple QR images for the *same* app every 2 minutes. */
+const ROTATE_WITHIN_PROVIDER_MS = 120_000;
+
+function groupQrByProvider(rows: QrRow[]): Record<QrProvider, QrRow[]> {
+  const grouped: Record<QrProvider, QrRow[]> = {
+    GOOGLE_PAY: [],
+    PHONEPE: [],
+    PAYTM: [],
+  };
+  for (const r of rows) {
+    grouped[r.provider].push(r);
+  }
+  for (const p of PROVIDER_ORDER) {
+    grouped[p].sort((a, b) => a.code - b.code);
+  }
+  return grouped;
+}
 
 export default function DonatePage() {
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [donorName, setDonorName] = useState('');
   const [donorEmail, setDonorEmail] = useState('');
@@ -27,9 +46,18 @@ export default function DonatePage() {
   const [error, setError] = useState('');
   const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
   const [qrLoading, setQrLoading] = useState(true);
-  const [selectedQRIndex, setSelectedQRIndex] = useState(0);
+  const [selectedProvider, setSelectedProvider] = useState<QrProvider | null>(null);
+  const [variantIndex, setVariantIndex] = useState(0);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
+
+  const grouped = useMemo(() => groupQrByProvider(qrCodes), [qrCodes]);
+  const providersWithCodes = useMemo(
+    () => PROVIDER_ORDER.filter((p) => grouped[p].length > 0),
+    [grouped]
+  );
+  const currentList = selectedProvider ? grouped[selectedProvider] : [];
+  const currentListLength = currentList.length;
 
   const loadQr = useCallback(async () => {
     setQrLoading(true);
@@ -38,7 +66,6 @@ export default function DonatePage() {
       const data = await res.json();
       const list: QrRow[] = (data.qrCodes || []).filter((q: QrRow) => q.isActive !== false);
       setQrCodes(list);
-      setSelectedQRIndex(0);
     } catch {
       setQrCodes([]);
     } finally {
@@ -51,14 +78,31 @@ export default function DonatePage() {
   }, [loadQr]);
 
   useEffect(() => {
-    if (qrCodes.length <= 1) return;
-    const t = setInterval(() => {
-      setSelectedQRIndex((i) => (i + 1) % qrCodes.length);
-    }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, [qrCodes.length]);
+    const g = groupQrByProvider(qrCodes);
+    if (!qrCodes.length) {
+      setSelectedProvider(null);
+      return;
+    }
+    setSelectedProvider((prev) => {
+      if (prev && g[prev].length > 0) return prev;
+      return PROVIDER_ORDER.find((p) => g[p].length > 0) ?? null;
+    });
+  }, [qrCodes]);
 
-  const finalAmount = selectedAmount || (customAmount ? parseInt(customAmount, 10) : 0);
+  useEffect(() => {
+    setVariantIndex(0);
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    if (!selectedProvider || currentListLength <= 1) return;
+    const t = setInterval(() => {
+      setVariantIndex((i) => (i + 1) % currentListLength);
+    }, ROTATE_WITHIN_PROVIDER_MS);
+    return () => clearInterval(t);
+  }, [selectedProvider, currentListLength]);
+
+  const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
+  const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +121,8 @@ export default function DonatePage() {
       return;
     }
 
-    if (!qrCodes.length) {
+    const activeQr = currentList[variantIndex];
+    if (!activeQr || !qrCodes.length) {
       setError('Payment QR codes are not configured yet. Please try again later.');
       setLoading(false);
       return;
@@ -93,7 +138,7 @@ export default function DonatePage() {
           donorPhone,
           amount: finalAmount,
           paymentMethod: 'UPI',
-          upiCode: qrCodes[selectedQRIndex]?.code,
+          upiCode: activeQr.code,
           isAnonymous,
         }),
       });
@@ -108,7 +153,6 @@ export default function DonatePage() {
         setDonorName('');
         setDonorEmail('');
         setDonorPhone('');
-        setSelectedAmount(null);
         setCustomAmount('');
         setIsAnonymous(false);
         setSubmitted(false);
@@ -140,7 +184,7 @@ export default function DonatePage() {
     );
   }
 
-  const activeQr = qrCodes[selectedQRIndex];
+  const activeQr = currentList[variantIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
@@ -163,12 +207,9 @@ export default function DonatePage() {
                     <button
                       key={amount}
                       type="button"
-                      onClick={() => {
-                        setSelectedAmount(amount);
-                        setCustomAmount('');
-                      }}
+                      onClick={() => setCustomAmount(String(amount))}
                       className={`p-3 rounded-lg border-2 font-semibold transition-all ${
-                        selectedAmount === amount
+                        finalAmount === amount && customAmount === String(amount)
                           ? 'border-primary bg-secondary text-primary'
                           : 'border-border bg-background text-foreground hover:border-primary/40'
                       }`}
@@ -189,23 +230,13 @@ export default function DonatePage() {
                     id="customAmount"
                     type="number"
                     value={customAmount}
-                    onChange={(e) => {
-                      setCustomAmount(e.target.value);
-                      setSelectedAmount(null);
-                    }}
+                    onChange={(e) => setCustomAmount(e.target.value)}
                     placeholder="Enter amount"
                     className="w-full pl-8 pr-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
                     min={100}
                   />
                 </div>
               </div>
-
-              {finalAmount > 0 && (
-                <div className="mb-6 p-4 bg-secondary rounded-lg border border-border">
-                  <p className="text-sm text-muted-foreground">You are giving</p>
-                  <p className="text-2xl font-bold text-primary">₹{finalAmount.toLocaleString('en-IN')}</p>
-                </div>
-              )}
 
               <div className="mb-6 space-y-3">
                 <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
@@ -282,9 +313,10 @@ export default function DonatePage() {
             <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
-                {qrCodes.length > 1 && (
+                {selectedProvider && currentListLength > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Rotates every {ROTATE_MS / 1000}s so people notice each option—you can still tap a card below.
+                    For {grouped[selectedProvider][0]?.displayName ?? 'this app'}, QR codes rotate every{' '}
+                    {ROTATE_WITHIN_PROVIDER_MS / 60_000} minutes ({currentListLength} options).
                   </p>
                 )}
               </div>
@@ -313,21 +345,27 @@ export default function DonatePage() {
                   <div className="mt-8">
                     <p className="text-sm font-medium text-foreground mb-4">Choose app</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {qrCodes.map((qr, index) => (
-                        <button
-                          key={qr._id}
-                          type="button"
-                          onClick={() => setSelectedQRIndex(index)}
-                          className={`p-4 rounded-lg border-2 text-left transition-all ${
-                            selectedQRIndex === index
-                              ? 'border-primary bg-secondary'
-                              : 'border-border bg-background hover:border-primary/40'
-                          }`}
-                        >
-                          <p className="font-semibold text-foreground">{qr.displayName}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Code {qr.code}</p>
-                        </button>
-                      ))}
+                      {providersWithCodes.map((p) => {
+                        const list = grouped[p];
+                        const rep = list[0];
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setSelectedProvider(p)}
+                            className={`p-4 rounded-lg border-2 text-left transition-all ${
+                              selectedProvider === p
+                                ? 'border-primary bg-secondary'
+                                : 'border-border bg-background hover:border-primary/40'
+                            }`}
+                          >
+                            <p className="font-semibold text-foreground">{rep.displayName}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {list.length === 1 ? `Code ${rep.code}` : `${list.length} QR codes · Code ${rep.code}+`}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </>

@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 
 interface UpdateCardProps {
@@ -16,7 +15,11 @@ export default function UpdateCard({
   date,
   imageUrl,
 }: UpdateCardProps) {
-  const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
+  const formatted = new Date(date).toLocaleDateString('en-IN', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
@@ -36,17 +39,17 @@ export default function UpdateCard({
         <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
 
         <p className="text-sm text-gray-500 mb-4">
-          By {author} · {timeAgo}
+          By {author} · {formatted}
         </p>
 
         <p className="text-gray-700 leading-relaxed mb-4 line-clamp-3">
           {content}
         </p>
 
-        <button className="text-emerald-600 hover:text-emerald-700 font-medium text-sm inline-flex items-center gap-1">
+        <span className="text-emerald-600 font-medium text-sm inline-flex items-center gap-1">
           Read more
           <span>→</span>
-        </button>
+        </span>
       </div>
     </div>
   );
