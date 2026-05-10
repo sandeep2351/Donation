@@ -52,6 +52,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [medicalList, setMedicalList] = useState<Record<string, unknown>[]>([]);
   const [medicalListLoading, setMedicalListLoading] = useState(false);
   const [medicalUploading, setMedicalUploading] = useState(false);
+  const [medicalModalOpen, setMedicalModalOpen] = useState(false);
 
   const [donationNotes, setDonationNotes] = useState<Record<string, string>>({});
   const [qrUploadingId, setQrUploadingId] = useState<string | null>(null);
@@ -266,8 +267,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
-  const saveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveSettings = async () => {
     if (!settings) return;
     setSettingsSaving(true);
     try {
@@ -330,6 +330,38 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
+  const deleteQrSlot = async (id: string, code: number) => {
+    if (!confirm(`Delete QR slot #${code}? It will be removed from the donate-page rotation.`)) return;
+    try {
+      const r = await fetch(`/api/qr-codes/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('delete failed');
+      await fetchQrs();
+    } catch (e) {
+      console.error(e);
+      alert('Could not delete slot. Stay logged in and try again.');
+    }
+  };
+
+  const closeMedicalModal = () => {
+    setMedicalModalOpen(false);
+    setMedicalMsg('');
+    setMedicalForm({
+      title: '',
+      category: 'LAB_REPORTS',
+      description: '',
+      date: new Date().toISOString().slice(0, 10),
+      doctorName: '',
+      hospital: '',
+      documentUrl: '',
+      documentFileName: '',
+      documentCloudinaryId: '',
+      documentMimeType: '',
+      documentResourceType: '' as '' | 'image' | 'raw',
+      fileSizeBytes: undefined,
+      isPublic: true,
+    });
+  };
+
   const submitMedical = async (e: React.FormEvent) => {
     e.preventDefault();
     setMedicalMsg('');
@@ -353,18 +385,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
         setMedicalMsg(j.error || 'Failed');
         return;
       }
-      setMedicalMsg('Saved. It will appear on /medical.');
-      setMedicalForm((f) => ({
-        ...f,
-        title: '',
-        description: '',
-        documentUrl: '',
-        documentFileName: '',
-        documentCloudinaryId: '',
-        documentMimeType: '',
-        documentResourceType: '',
-        fileSizeBytes: undefined,
-      }));
+      closeMedicalModal();
       fetchMedicalList();
     } catch {
       setMedicalMsg('Network error');
@@ -592,7 +613,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
               <p className="text-muted-foreground text-sm max-w-2xl text-pretty mt-1">
                 One shared pool for all apps on the donate page. Google Pay, PhonePe, and Paytm each rotate through{' '}
-                <strong>every</strong> slot below every 2 minutes. Upload images to Cloudinary (
+                <strong>every</strong> slot below every 30 seconds. Upload images to Cloudinary (
                 <code className="text-xs bg-secondary px-1 rounded">qr_codes</code>) or paste URLs.
               </p>
             </div>
@@ -616,7 +637,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Label</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Image URL</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Upload</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground">Save</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -666,14 +687,24 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                             </label>
                           </td>
                           <td className="px-3 py-3">
-                            <button
-                              type="button"
-                              onClick={() => saveQr(id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:opacity-95"
-                            >
-                              <Save className="w-3.5 h-3.5" />
-                              Save
-                            </button>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => saveQr(id)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:opacity-95"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteQrSlot(id, Number(qr.code))}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -689,291 +720,416 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       )}
 
       {activeTab === 'medical' && (
-        <div className="space-y-10">
-          <div>
-            <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Medical documents</h2>
-            <p className="text-sm text-muted-foreground text-pretty max-w-2xl">
-              Upload PDF, Word (DOC/DOCX), or images (PNG, JPG, JPEG, WebP) while logged in; files go to Cloudinary and
-              we save the secure URL, file name, MIME type, and public id in MongoDB for the public medical page.
-            </p>
-          </div>
-
-          <form
-            onSubmit={submitMedical}
-            className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4 max-w-2xl"
-          >
-            <h3 className="text-lg font-semibold text-foreground">Publish new document</h3>
-            {medicalMsg && <p className="text-sm text-primary">{medicalMsg}</p>}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">1. Upload file (optional)</label>
-              <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-sm">
-                {medicalUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                <span>
-                  {medicalUploading ? 'Uploading…' : 'PDF, Word, or image from computer'}
-                </span>
-                <input
-                  type="file"
-                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/*,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
-                  className="hidden"
-                  disabled={medicalUploading}
-                  onChange={handleMedicalFile}
-                />
-              </label>
-              {medicalForm.documentUrl && (
-                <p className="text-xs text-muted-foreground mt-2 break-all">
-                  Linked: {medicalForm.documentFileName} ({medicalForm.documentResourceType || 'file'})
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Or paste Cloudinary URL</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
-                value={medicalForm.documentUrl}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, documentUrl: e.target.value }))}
-                placeholder="https://res.cloudinary.com/..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Title</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={medicalForm.title}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, title: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Category</label>
-              <select
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={medicalForm.category}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, category: e.target.value }))}
-              >
-                <option value="DIAGNOSIS">Diagnosis</option>
-                <option value="TREATMENT">Treatment</option>
-                <option value="SURGERY_PLAN">Surgery plan</option>
-                <option value="PROGRESS">Progress</option>
-                <option value="LAB_REPORTS">Lab reports</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-              <textarea
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background min-h-[100px]"
-                value={medicalForm.description}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, description: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Report date</label>
-                <input
-                  type="date"
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                  value={medicalForm.date}
-                  onChange={(e) => setMedicalForm((f) => ({ ...f, date: e.target.value }))}
-                />
-              </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={medicalForm.isPublic}
-                    onChange={(e) => setMedicalForm((f) => ({ ...f, isPublic: e.target.checked }))}
-                  />
-                  Public on /medical
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Doctor (optional)</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={medicalForm.doctorName}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, doctorName: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Hospital (optional)</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={medicalForm.hospital}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, hospital: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Display file name (optional)</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={medicalForm.documentFileName}
-                onChange={(e) => setMedicalForm((f) => ({ ...f, documentFileName: e.target.value }))}
-                placeholder="Defaults from upload"
-              />
+              <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Medical documents</h2>
+              <p className="text-sm text-muted-foreground text-pretty max-w-2xl">
+                Files listed below appear on /medical when published. Add PDF, Word, or images via Cloudinary — use{' '}
+                <strong>Add document</strong> to open the upload form.
+              </p>
             </div>
             <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
+              type="button"
+              onClick={() => {
+                setMedicalMsg('');
+                setMedicalModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-95 shrink-0"
             >
-              <Save className="w-4 h-4" />
-              Save to database
+              <Plus className="w-4 h-4" />
+              Add document
             </button>
-          </form>
-
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">All stored reports</h3>
-            {medicalListLoading ? (
-              <p className="text-muted-foreground">Loading…</p>
-            ) : medicalList.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No documents yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {medicalList.map((r) => {
-                  const id = String(r._id);
-                  return (
-                    <div
-                      key={id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-border rounded-lg bg-card"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{String(r.title)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {String(r.category)} · {r.isPublic ? 'Public' : 'Hidden'} ·{' '}
-                          {String(r.documentFileName || 'no file')}
-                        </p>
-                        {typeof r.documentUrl === 'string' && r.documentUrl ? (
-                          <a
-                            href={r.documentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline break-all"
-                          >
-                            Open file
-                          </a>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleMedicalPublic(id, Boolean(r.isPublic))}
-                          className="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-secondary"
-                        >
-                          {r.isPublic ? 'Unpublish' : 'Publish'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteMedicalReport(id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
+
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[800px]">
+                <thead>
+                  <tr className="bg-secondary/80 border-b border-border">
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Title</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Category</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Date</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">File</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Visibility</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {medicalListLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-muted-foreground">
+                        Loading…
+                      </td>
+                    </tr>
+                  ) : medicalList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-muted-foreground text-center">
+                        No documents yet. Click <strong>Add document</strong>.
+                      </td>
+                    </tr>
+                  ) : (
+                    medicalList.map((r) => {
+                      const id = String(r._id);
+                      const cat = String(r.category);
+                      const catShort =
+                        {
+                          DIAGNOSIS: 'Diagnosis',
+                          TREATMENT: 'Treatment',
+                          SURGERY_PLAN: 'Surgery plan',
+                          PROGRESS: 'Progress',
+                          LAB_REPORTS: 'Lab reports',
+                        }[cat] || cat;
+                      const reportDate = r.date
+                        ? new Date(r.date as string).toLocaleDateString()
+                        : '—';
+                      return (
+                        <tr key={id} className="hover:bg-secondary/40 align-top">
+                          <td className="px-3 py-3 font-medium text-foreground max-w-[200px]">
+                            <span className="line-clamp-2">{String(r.title)}</span>
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{catShort}</td>
+                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{reportDate}</td>
+                          <td className="px-3 py-3 min-w-[140px]">
+                            {typeof r.documentUrl === 'string' && r.documentUrl ? (
+                              <a
+                                href={r.documentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline break-all line-clamp-2"
+                              >
+                                {String(r.documentFileName || 'Open')}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                r.isPublic ? 'bg-emerald-100 text-emerald-900' : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {r.isPublic ? 'Public' : 'Hidden'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleMedicalPublic(id, Boolean(r.isPublic))}
+                                className="px-2 py-1 text-xs border border-border rounded-md hover:bg-secondary"
+                              >
+                                {r.isPublic ? 'Unpublish' : 'Publish'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteMedicalReport(id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {medicalModalOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="medical-modal-title"
+              onClick={closeMedicalModal}
+            >
+              <div
+                className="bg-card border border-border rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-start gap-4 mb-4">
+                  <h3 id="medical-modal-title" className="text-lg font-semibold text-foreground">
+                    Publish new document
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={closeMedicalModal}
+                    className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={submitMedical} className="space-y-4">
+                  {medicalMsg && <p className="text-sm text-destructive">{medicalMsg}</p>}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">1. Upload file (optional)</label>
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-sm">
+                      {medicalUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      <span>
+                        {medicalUploading ? 'Uploading…' : 'PDF, Word, or image from computer'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/*,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
+                        className="hidden"
+                        disabled={medicalUploading}
+                        onChange={handleMedicalFile}
+                      />
+                    </label>
+                    {medicalForm.documentUrl && (
+                      <p className="text-xs text-muted-foreground mt-2 break-all">
+                        Linked: {medicalForm.documentFileName} ({medicalForm.documentResourceType || 'file'})
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Or paste Cloudinary URL</label>
+                    <input
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                      value={medicalForm.documentUrl}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, documentUrl: e.target.value }))}
+                      placeholder="https://res.cloudinary.com/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+                    <input
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                      value={medicalForm.title}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, title: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Category</label>
+                    <select
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                      value={medicalForm.category}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, category: e.target.value }))}
+                    >
+                      <option value="DIAGNOSIS">Diagnosis</option>
+                      <option value="TREATMENT">Treatment</option>
+                      <option value="SURGERY_PLAN">Surgery plan</option>
+                      <option value="PROGRESS">Progress</option>
+                      <option value="LAB_REPORTS">Lab reports</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+                    <textarea
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background min-h-[100px]"
+                      value={medicalForm.description}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, description: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Report date</label>
+                      <input
+                        type="date"
+                        className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                        value={medicalForm.date}
+                        onChange={(e) => setMedicalForm((f) => ({ ...f, date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={medicalForm.isPublic}
+                          onChange={(e) => setMedicalForm((f) => ({ ...f, isPublic: e.target.checked }))}
+                        />
+                        Public on /medical
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Doctor (optional)</label>
+                    <input
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                      value={medicalForm.doctorName}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, doctorName: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Hospital (optional)</label>
+                    <input
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                      value={medicalForm.hospital}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, hospital: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Display file name (optional)
+                    </label>
+                    <input
+                      className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                      value={medicalForm.documentFileName}
+                      onChange={(e) => setMedicalForm((f) => ({ ...f, documentFileName: e.target.value }))}
+                      placeholder="Defaults from upload"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save to database
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeMedicalModal}
+                      className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === 'settings' && settings && (
-        <div className="space-y-6">
-          <h2 className="text-3xl font-serif font-bold text-foreground">Campaign settings</h2>
-          <form
-            onSubmit={saveSettings}
-            className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4 max-w-2xl"
-          >
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Target (₹)</label>
-              <input
-                type="number"
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={Number(settings.targetAmount)}
-                onChange={(e) => setSettings({ ...settings, targetAmount: e.target.value })}
-              />
+              <h2 className="text-3xl font-serif font-bold text-foreground">Campaign settings</h2>
+              <p className="text-sm text-muted-foreground mt-1 text-pretty max-w-2xl">
+                Update fundraising details, patient information, and what visitors see. Use Save once when you’re done
+                — all fields below are saved together.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2 text-pretty">
+                Raised amount comes from confirmed donations; you do not set it here.
+              </p>
             </div>
+            <button
+              type="button"
+              disabled={settingsSaving}
+              onClick={() => void saveSettings()}
+              className="inline-flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium shadow-sm hover:opacity-95 disabled:opacity-50 sm:mt-1"
+            >
+              {settingsSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              ) : (
+                <Save className="w-4 h-4" aria-hidden />
+              )}
+              {settingsSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Title</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={String(settings.campaignTitle || '')}
-                onChange={(e) => setSettings({ ...settings, campaignTitle: e.target.value })}
-              />
+              <h3 className="text-base font-semibold text-foreground">Campaign information</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Fundraising goal, title, patient details, hospital, and the story visitors read.
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-              <textarea
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background min-h-[100px]"
-                value={String(settings.campaignDescription || '')}
-                onChange={(e) => setSettings({ ...settings, campaignDescription: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Father name</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Target (₹)</label>
                 <input
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                  type="number"
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={Number(settings.targetAmount)}
+                  onChange={(e) => setSettings({ ...settings, targetAmount: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Campaign title</label>
+                <input
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={String(settings.campaignTitle || '')}
+                  onChange={(e) => setSettings({ ...settings, campaignTitle: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Father name</label>
+                <input
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
                   value={String(settings.fatherName || '')}
                   onChange={(e) => setSettings({ ...settings, fatherName: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Age</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Age</label>
                 <input
                   type="number"
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background"
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
                   value={Number(settings.fatherAge)}
                   onChange={(e) => setSettings({ ...settings, fatherAge: e.target.value })}
                 />
               </div>
+              <div className="md:col-span-2 lg:col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1.5">Hospital name / location</label>
+                <input
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={String(settings.hospitalName || '')}
+                  onChange={(e) => setSettings({ ...settings, hospitalName: e.target.value })}
+                />
+              </div>
             </div>
+            <div className="mt-5">
+              <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
+              <textarea
+                rows={5}
+                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm min-h-[120px] resize-y"
+                value={String(settings.campaignDescription || '')}
+                onChange={(e) => setSettings({ ...settings, campaignDescription: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Hospital</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={String(settings.hospitalName || '')}
-                onChange={(e) => setSettings({ ...settings, hospitalName: e.target.value })}
-              />
+              <h3 className="text-base font-semibold text-foreground">Public contact</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Email and phone shown on the site, and whether visitors can leave messages.
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Public email</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={String(settings.emailContact || '')}
-                onChange={(e) => setSettings({ ...settings, emailContact: e.target.value })}
-              />
+            <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Public email</label>
+                <input
+                  type="email"
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={String(settings.emailContact || '')}
+                  onChange={(e) => setSettings({ ...settings, emailContact: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Public phone</label>
+                <input
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                  value={String(settings.phoneContact || '')}
+                  onChange={(e) => setSettings({ ...settings, phoneContact: e.target.value })}
+                />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2.5 text-sm font-medium text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-border size-4"
+                    checked={Boolean(settings.allowPublicMessages)}
+                    onChange={(e) => setSettings({ ...settings, allowPublicMessages: e.target.checked })}
+                  />
+                  Allow public messages
+                </label>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Public phone</label>
-              <input
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background"
-                value={String(settings.phoneContact || '')}
-                onChange={(e) => setSettings({ ...settings, phoneContact: e.target.value })}
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={Boolean(settings.allowPublicMessages)}
-                onChange={(e) => setSettings({ ...settings, allowPublicMessages: e.target.checked })}
-              />
-              Allow public messages
-            </label>
-            <button
-              type="submit"
-              disabled={settingsSaving}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {settingsSaving ? 'Saving…' : 'Save settings'}
-            </button>
-            <p className="text-xs text-muted-foreground text-pretty">
-              Raised amount is derived from confirmed donations; you do not edit it here.
-            </p>
-          </form>
+          </div>
         </div>
       )}
 

@@ -239,18 +239,6 @@ export default function ContactPage() {
                 </div>
               </div>
             </div>
-
-            <div className="bg-secondary/60 rounded-xl border border-border p-6 text-sm text-muted-foreground leading-relaxed text-pretty">
-              <p className="font-medium text-foreground mb-2">Email delivery</p>
-              <p>
-                Set <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_HOST</code>,{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_PORT</code>,{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_USER</code>, and{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_PASS</code> in your environment. Messages
-                are addressed to <span className="text-foreground">sandeepkalyan299@gmail.com</span> unless you override{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded">ADMIN_INBOX_EMAIL</code>.
-              </p>
-            </div>
           </div>
         </div>
       </div>

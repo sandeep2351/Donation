@@ -41,3 +41,26 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
+
+    const { id } = await Promise.resolve(params);
+    await connectDB();
+
+    const deleted = await QRCode.findByIdAndDelete(id);
+    if (!deleted) {
+      return NextResponse.json({ error: 'QR code not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('QR delete error:', error);
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+  }
+}

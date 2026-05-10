@@ -25,7 +25,7 @@ const APP_LABEL: Record<UiProvider, string> = {
 };
 
 /** Shared pool rotates on this interval for every selected app. */
-const ROTATE_POOL_MS = 120_000;
+const ROTATE_POOL_MS = 30_000;
 
 export default function DonatePage() {
   const [customAmount, setCustomAmount] = useState('');
@@ -294,8 +294,8 @@ export default function DonatePage() {
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
                 {poolLen > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · rotates every {ROTATE_POOL_MS / 60_000}{' '}
-                    minutes for {APP_LABEL[selectedUiApp]} (and the same pool for every app).
+                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · rotates every{' '}
+                    {ROTATE_POOL_MS / 1000} seconds for {APP_LABEL[selectedUiApp]} (same pool for every app).
                   </p>
                 )}
               </div>

@@ -31,45 +31,34 @@ export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProp
     onQRScanned?.(qrCode.code);
   }, [qrCode.code, onQRScanned]);
 
-  const providerColors: Record<string, string> = {
-    GOOGLE_PAY: 'from-blue-400 to-blue-600',
-    PHONEPE: 'from-purple-400 to-purple-600',
-    PAYTM: 'from-cyan-400 to-blue-500',
-  };
-
-  const bgColor = providerColors[qrCode.provider] || 'from-gray-400 to-gray-600';
-
   return (
     <div className="flex flex-col items-center">
-      <div className={`bg-gradient-to-br ${bgColor} rounded-xl p-8 mb-4 shadow-lg`}>
+      <div className="mb-4 rounded-xl border border-border bg-white p-4 shadow-sm">
         {qrCode.cloudinaryUrl || qrCode.imageUrl ? (
-          <div className="w-64 h-64 bg-white rounded-lg p-3 flex items-center justify-center">
-            <img 
-              src={qrCode.cloudinaryUrl || qrCode.imageUrl} 
+          <div className="w-64 h-64 bg-white flex items-center justify-center">
+            <img
+              src={qrCode.cloudinaryUrl || qrCode.imageUrl}
               alt={`${qrCode.displayName} QR Code`}
               className="w-full h-full object-contain"
               loading="lazy"
             />
           </div>
         ) : (
-          <div className="w-64 h-64 bg-white rounded-lg flex items-center justify-center">
-            <p className="text-gray-500 text-sm">QR Code will be displayed here</p>
+          <div className="w-64 h-64 bg-white flex items-center justify-center">
+            <p className="text-muted-foreground text-sm text-center px-2">QR Code will be displayed here</p>
           </div>
         )}
       </div>
 
       <div className="text-center mb-4">
-        <p className="text-lg font-semibold text-gray-900 mb-1">
-          {qrCode.displayName}
-        </p>
-        <p className="text-sm text-gray-600 mb-3">
-          Scan to donate quickly and securely
-        </p>
+        <p className="text-lg font-semibold text-foreground mb-1">{qrCode.displayName}</p>
+        <p className="text-sm text-muted-foreground mb-3">Scan to donate quickly and securely</p>
       </div>
 
       <button
+        type="button"
         onClick={handleCopy}
-        className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors text-emerald-700 text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border rounded-lg hover:bg-secondary/80 transition-colors text-foreground text-sm font-medium"
       >
         {copied ? (
           <>

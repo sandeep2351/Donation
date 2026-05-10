@@ -15,6 +15,7 @@ type Report = {
   documentUrl?: string;
   documentFileName?: string;
   documentResourceType?: 'image' | 'raw';
+  documentMimeType?: string;
 };
 
 const CATEGORIES = [
@@ -121,6 +122,7 @@ export default function MedicalReportsClient() {
                     documentUrl={report.documentUrl}
                     documentFileName={report.documentFileName}
                     documentResourceType={report.documentResourceType}
+                    documentMimeType={report.documentMimeType}
                   />
                 </div>
               </article>
