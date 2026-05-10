@@ -6,8 +6,7 @@ import { Copy, CheckCircle2 } from 'lucide-react';
 interface QRCodeDisplayProps {
   qrCode: {
     code: number;
-    displayName: string;
-    provider: string;
+    displayName?: string;
     imageUrl?: string;
     cloudinaryUrl?: string;
   };
@@ -38,7 +37,7 @@ export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProp
           <div className="w-64 h-64 bg-white flex items-center justify-center">
             <img
               src={qrCode.cloudinaryUrl || qrCode.imageUrl}
-              alt={`${qrCode.displayName} QR Code`}
+              alt={`UPI QR code, slot ${qrCode.code}`}
               className="w-full h-full object-contain"
               loading="lazy"
             />
@@ -50,10 +49,7 @@ export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProp
         )}
       </div>
 
-      <div className="text-center mb-4">
-        <p className="text-lg font-semibold text-foreground mb-1">{qrCode.displayName}</p>
-        <p className="text-sm text-muted-foreground mb-3">Scan to donate quickly and securely</p>
-      </div>
+      <p className="text-center text-sm text-muted-foreground mb-4">Scan to donate quickly and securely</p>
 
       <button
         type="button"

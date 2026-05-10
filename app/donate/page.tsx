@@ -4,27 +4,16 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
-/** App “skin” for donors; the same QR pool rotates for each. */
-type UiProvider = 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM';
-
 type QrRow = {
   _id: string;
   code: number;
   displayName: string;
-  provider: UiProvider | 'POOL' | string;
+  provider: string;
   imageUrl?: string | null;
   isActive?: boolean;
 };
 
-const UI_PROVIDER_ORDER: UiProvider[] = ['GOOGLE_PAY', 'PHONEPE', 'PAYTM'];
-
-const APP_LABEL: Record<UiProvider, string> = {
-  GOOGLE_PAY: 'Google Pay',
-  PHONEPE: 'PhonePe',
-  PAYTM: 'Paytm',
-};
-
-/** Shared pool rotates on this interval for every selected app. */
+/** Same QR images rotate in the pool regardless of which UPI app the donor uses to scan. */
 const ROTATE_POOL_MS = 30_000;
 
 export default function DonatePage() {
@@ -38,7 +27,6 @@ export default function DonatePage() {
   const [error, setError] = useState('');
   const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
   const [qrLoading, setQrLoading] = useState(true);
-  const [selectedUiApp, setSelectedUiApp] = useState<UiProvider>('GOOGLE_PAY');
   const [poolIndex, setPoolIndex] = useState(0);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
@@ -68,10 +56,6 @@ export default function DonatePage() {
   useEffect(() => {
     loadQr();
   }, [loadQr]);
-
-  useEffect(() => {
-    setPoolIndex(0);
-  }, [selectedUiApp]);
 
   useEffect(() => {
     if (poolLen <= 1) return;
@@ -170,8 +154,8 @@ export default function DonatePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance">Donate</h1>
         <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
-          Choose an amount, pick the app you use, then scan. The same QR pool rotates for every app (images from
-          admin).
+          Choose an amount, then scan any active QR below. If several are configured, the code cycles on a timer so
+          load is shared across slots.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -294,8 +278,8 @@ export default function DonatePage() {
                 <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
                 {poolLen > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · rotates every{' '}
-                    {ROTATE_POOL_MS / 1000} seconds for {APP_LABEL[selectedUiApp]} (same pool for every app).
+                    Shared pool: {poolLen} QR{poolLen === 1 ? '' : 's'} · next code in {ROTATE_POOL_MS / 1000}{' '}
+                    seconds.
                   </p>
                 )}
               </div>
@@ -313,33 +297,10 @@ export default function DonatePage() {
                     <QRCodeDisplay
                       qrCode={{
                         code: activeQr.code,
-                        displayName: activeQr.displayName,
-                        provider: selectedUiApp,
                         imageUrl: activeQr.imageUrl || undefined,
                         cloudinaryUrl: activeQr.imageUrl || undefined,
                       }}
                     />
-                  </div>
-
-                  <div className="mt-8">
-                    <p className="text-sm font-medium text-foreground mb-4">Choose app</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {UI_PROVIDER_ORDER.map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setSelectedUiApp(p)}
-                          className={`p-4 rounded-lg border-2 text-left transition-all ${
-                            selectedUiApp === p
-                              ? 'border-primary bg-secondary'
-                              : 'border-border bg-background hover:border-primary/40'
-                          }`}
-                        >
-                          <p className="font-semibold text-foreground">{APP_LABEL[p]}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Same QR pool · slot {activeQr.code}</p>
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </>
               )}

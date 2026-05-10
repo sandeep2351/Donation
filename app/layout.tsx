@@ -2,34 +2,41 @@ import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { getCampaignBranding } from '@/lib/campaign-branding'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: 'Help Dad\'s Surgery - Lung Transplant Fundraising',
-  description:
-    'Support our father\'s lung transplant surgery. Every donation helps save a life. Transparent tracking of medical expenses and progress updates.',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
-  openGraph: {
-    title: 'Help Dad\'s Surgery - Lung Transplant Fundraising',
-    description: 'Support our father\'s lung transplant surgery. Every donation helps save a life.',
-    type: 'website',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description } = await getCampaignBranding()
+  const tabTitle = `${title} · Donate`
+  const desc =
+    description ||
+    'Transparent fundraising: track support and see how funds are used.'
+  return {
+    title: tabTitle,
+    description: desc,
+    icons: {
+      icon: [
+        {
+          url: '/icon-light-32x32.png',
+          media: '(prefers-color-scheme: light)',
+        },
+        {
+          url: '/icon-dark-32x32.png',
+          media: '(prefers-color-scheme: dark)',
+        },
+        {
+          url: '/icon.svg',
+          type: 'image/svg+xml',
+        },
+      ],
+      apple: '/apple-icon.png',
+    },
+    openGraph: {
+      title: tabTitle,
+      description: desc.slice(0, 200),
+      type: 'website',
+    },
+  }
 }
 
 export const viewport: Viewport = {
