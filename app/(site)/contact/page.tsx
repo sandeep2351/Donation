@@ -82,7 +82,11 @@ export default function ContactPage() {
               <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />
               <div>
                 <h3 className="font-semibold text-foreground mb-1">Email</h3>
-                <a href={`mailto:${email}`} className="text-primary hover:underline font-medium break-all">
+                <a
+                  href={`mailto:${email}`}
+                  className="text-primary hover:underline font-medium break-all"
+                  suppressHydrationWarning
+                >
                   {email}
                 </a>
                 <p className="text-sm text-muted-foreground mt-2">Usually within a day or two.</p>
@@ -95,7 +99,11 @@ export default function ContactPage() {
               <Phone className="w-6 h-6 text-primary shrink-0 mt-1" />
               <div>
                 <h3 className="font-semibold text-foreground mb-1">Phone</h3>
-                <a href={`tel:${phone.replace(/\s/g, '')}`} className="text-primary hover:underline font-medium">
+                <a
+                  href={`tel:${phone.replace(/\s/g, '')}`}
+                  className="text-primary hover:underline font-medium"
+                  suppressHydrationWarning
+                >
                   {phone}
                 </a>
                 <p className="text-sm text-muted-foreground mt-2">Reasonable daytime hours, IST.</p>
@@ -149,6 +157,7 @@ export default function ContactPage() {
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -164,6 +173,7 @@ export default function ContactPage() {
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -178,6 +188,7 @@ export default function ContactPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -192,6 +203,7 @@ export default function ContactPage() {
                   value={formData.subject}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  suppressHydrationWarning
                 >
                   <option value="">Choose…</option>
                   <option value="Donation question">Donation question</option>
@@ -214,6 +226,7 @@ export default function ContactPage() {
                   onChange={handleChange}
                   rows={5}
                   className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none resize-none"
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -221,6 +234,7 @@ export default function ContactPage() {
                 type="submit"
                 disabled={loading}
                 className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 font-semibold transition-opacity"
+                suppressHydrationWarning
               >
                 {loading ? 'Sending…' : 'Send message'}
               </button>
