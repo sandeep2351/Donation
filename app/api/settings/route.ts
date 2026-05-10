@@ -5,18 +5,18 @@ import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await connectDB();
 
-    let settings = await CampaignSettings.findOne({});
+    let settings = await CampaignSettings.findOne({}).lean();
 
     // If no settings exist, create default ones
     if (!settings) {
-      settings = new CampaignSettings({
+      await CampaignSettings.create({
         targetAmount: 2000000,
-        campaignTitle: "Family Fundraiser",
-        campaignDescription: 'Supporting our father\'s lung transplant surgery.',
+        campaignTitle: 'Family Fundraiser',
+        campaignDescription: "Supporting our father's lung transplant surgery.",
         fatherName: 'Father Name',
         fatherAge: 50,
         hospitalName: 'Hospital Name',
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         phoneContact: '+91-9999999999',
         allowPublicMessages: true,
       });
-      await settings.save();
+      settings = await CampaignSettings.findOne({}).lean();
     }
 
     return NextResponse.json({
@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
       settings,
     });
   } catch (error) {
-    console.error('Settings fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch settings' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Settings fetch error:', message, error);
+    const details =
+      process.env.VERCEL === '1' && process.env.API_DEBUG_ERRORS === '1' ? { details: message } : {};
+    return NextResponse.json({ error: 'Failed to fetch settings', ...details }, { status: 500 });
   }
 }
 

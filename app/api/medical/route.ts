@@ -6,6 +6,9 @@ import { getCurrentAdmin } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
+/** Allow slow cold Mongo connections on serverless (Vercel Hobby max is typically 60s when set). */
+export const maxDuration = 30;
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -29,7 +32,8 @@ export async function GET(request: NextRequest) {
       count: reports.length,
     });
   } catch (error) {
-    console.error('Medical report fetch error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Medical report fetch error:', message, error);
     return NextResponse.json({ error: 'Failed to fetch medical reports' }, { status: 500 });
   }
 }

@@ -5,6 +5,8 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /** Keep DB drivers out of the server bundle — bundling often breaks Mongoose on Vercel (500 on every API route). */
+  serverExternalPackages: ['mongoose', 'mongodb', 'bson'],
   // Parent folders may contain other lockfiles; pin Turbopack to this app.
   turbopack: {
     root: projectRoot,
