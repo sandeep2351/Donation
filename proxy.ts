@@ -1,25 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Check for admin routes
-  if (request.nextUrl.pathname.startsWith('/admin/dashboard')) {
-    const token = request.cookies.get('admin_token');
+/** Cookie presence only here (Edge-safe). JWT validity is enforced by `/api/admin/auth` and admin APIs. */
+function hasAdminCookie(request: NextRequest): boolean {
+  return Boolean(request.cookies.get('admin_token')?.value);
+}
 
-    if (!token) {
-      // Redirect to login if no token
+export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/admin/dashboard')) {
+    if (!hasAdminCookie(request)) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
-
-    // Token exists, allow access
     return NextResponse.next();
   }
 
-  // Prevent access to /admin/login if already authenticated
   if (request.nextUrl.pathname === '/admin/login') {
-    const token = request.cookies.get('admin_token');
-
-    if (token) {
+    if (hasAdminCookie(request)) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
   }

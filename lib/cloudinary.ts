@@ -15,27 +15,38 @@ interface UploadOptions {
   tags?: string[];
 }
 
+export type CloudinaryUploadResult = {
+  url: string;
+  publicId: string;
+  cloudinaryId: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  resourceType: 'image' | 'raw';
+  bytes?: number;
+};
+
 export async function uploadToCloudinary(
   file: Buffer | string,
   filename: string,
   options: UploadOptions = {}
-): Promise<any> {
+): Promise<CloudinaryUploadResult> {
   if (!CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET || !CLOUDINARY_CLOUD_NAME) {
     throw new Error('Cloudinary credentials not configured');
   }
 
+  const resource = options.resource_type === 'raw' ? 'raw' : 'image';
   const formData = new FormData();
-  
-  // Handle both buffer and string (base64)
+
   if (typeof file === 'string') {
     formData.append('file', file);
   } else {
-    formData.append('file', new Blob([file]), filename);
+    formData.append('file', new Blob([new Uint8Array(file)]), filename);
   }
 
-  formData.append('upload_preset', 'unsigned_upload'); // Use unsigned upload for this demo
+  formData.append('upload_preset', process.env.CLOUDINARY_UPLOAD_PRESET || 'unsigned_upload');
   formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
-  
+
   if (options.folder) {
     formData.append('folder', options.folder);
   }
@@ -46,24 +57,25 @@ export async function uploadToCloudinary(
     formData.append('tags', options.tags.join(','));
   }
 
-  try {
-    const response = await axios.post(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resource}/upload`;
 
+  try {
+    const response = await axios.post(uploadUrl, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const d = response.data;
     return {
-      url: response.data.secure_url,
-      publicId: response.data.public_id,
-      cloudinaryId: response.data.public_id,
-      width: response.data.width,
-      height: response.data.height,
-      format: response.data.format,
+      url: d.secure_url,
+      publicId: d.public_id,
+      cloudinaryId: d.public_id,
+      width: d.width,
+      height: d.height,
+      format: d.format,
+      resourceType: resource === 'raw' ? 'raw' : 'image',
+      bytes: d.bytes,
     };
   } catch (error) {
     console.error('Cloudinary upload error:', error);
@@ -77,8 +89,6 @@ export async function deleteFromCloudinary(publicId: string): Promise<void> {
   }
 
   try {
-    // For unsigned uploads, deletion might not be available
-    // This is a placeholder for signed deletion
     console.log(`Would delete: ${publicId}`);
   } catch (error) {
     console.error('Cloudinary delete error:', error);

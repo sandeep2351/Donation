@@ -1,7 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mail, Phone, MapPin, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+
+type Settings = {
+  emailContact?: string;
+  phoneContact?: string;
+  hospitalName?: string;
+  campaignTitle?: string;
+};
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -13,95 +20,126 @@ export default function ContactPage() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => setSettings(d.settings || null))
+      .catch(() => setSettings(null));
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    setSubmitted(true);
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-    setLoading(false);
-
-    setTimeout(() => setSubmitted(false), 3000);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Could not send. Check SMTP settings on the server.');
+        return;
+      }
+      setSubmitted(true);
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const email = settings?.emailContact || 'sandeepkalyan299@gmail.com';
+  const phone = settings?.phoneContact || '+91-0000000000';
+  const cityLine = settings?.hospitalName ? `Near ${settings.hospitalName}` : 'India';
+
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-blue-50 min-h-screen">
+    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 text-center">
-          Get in Touch
+        <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4 text-center text-balance">
+          Contact the family
         </h1>
-        <p className="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-          Have questions or want to help? We&apos;d love to hear from you. Reach out and we&apos;ll get back to you as soon as possible.
+        <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
+          Messages go to the admin inbox by email when SMTP is configured. The address below comes from your
+          campaign settings.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Contact Information Cards */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-emerald-600">
+          <div className="bg-card rounded-xl border border-border p-6 border-t-4 border-t-primary shadow-sm">
             <div className="flex items-start gap-4">
-              <Mail className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
+              <Mail className="w-6 h-6 text-primary shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                <a href="mailto:contact@example.com" className="text-emerald-600 hover:text-emerald-700 font-medium break-all">
-                  contact@example.com
+                <h3 className="font-semibold text-foreground mb-1">Email</h3>
+                <a href={`mailto:${email}`} className="text-primary hover:underline font-medium break-all">
+                  {email}
                 </a>
-                <p className="text-sm text-gray-600 mt-2">We typically respond within 24 hours</p>
+                <p className="text-sm text-muted-foreground mt-2">Usually within a day or two.</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-600">
+          <div className="bg-card rounded-xl border border-border p-6 border-t-4 border-t-primary/70 shadow-sm">
             <div className="flex items-start gap-4">
-              <Phone className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+              <Phone className="w-6 h-6 text-primary shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                <a href="tel:+91-9999999999" className="text-blue-600 hover:text-blue-700 font-medium">
-                  +91-9999999999
+                <h3 className="font-semibold text-foreground mb-1">Phone</h3>
+                <a href={`tel:${phone.replace(/\s/g, '')}`} className="text-primary hover:underline font-medium">
+                  {phone}
                 </a>
-                <p className="text-sm text-gray-600 mt-2">Available 9 AM - 6 PM IST</p>
+                <p className="text-sm text-muted-foreground mt-2">Reasonable daytime hours, IST.</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-purple-600">
+          <div className="bg-card rounded-xl border border-border p-6 border-t-4 border-t-muted-foreground/30 shadow-sm">
             <div className="flex items-start gap-4">
-              <MapPin className="w-6 h-6 text-purple-600 flex-shrink-0 mt-1" />
+              <MapPin className="w-6 h-6 text-primary shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Location</h3>
-                <p className="text-gray-700 font-medium">City, Country</p>
-                <p className="text-sm text-gray-600 mt-2">Available for local meetings</p>
+                <h3 className="font-semibold text-foreground mb-1">Location</h3>
+                <p className="text-foreground font-medium">{cityLine}</p>
+                <p className="text-sm text-muted-foreground mt-2">Update hospital or city in admin settings.</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Contact Form */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Write to us</h2>
 
             {submitted && (
-              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="mb-6 p-4 bg-secondary border border-border rounded-lg flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-emerald-900">Message sent successfully!</p>
-                  <p className="text-sm text-emerald-800">We&apos;ll get back to you shortly.</p>
+                  <p className="font-semibold text-foreground">Sent</p>
+                  <p className="text-sm text-muted-foreground">If SMTP is set up, the admin already has your note.</p>
                 </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{error}</p>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name *
+                <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
+                  Full name *
                 </label>
                 <input
                   id="name"
@@ -110,14 +148,13 @@ export default function ContactPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Your name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address *
+                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+                  Email *
                 </label>
                 <input
                   id="email"
@@ -126,14 +163,13 @@ export default function ContactPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
                 />
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
+                <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
+                  Phone
                 </label>
                 <input
                   id="phone"
@@ -141,13 +177,12 @@ export default function ContactPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+91-XXXXXXXXXX"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
                 />
               </div>
 
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="subject" className="block text-sm font-medium text-foreground mb-1">
                   Subject *
                 </label>
                 <select
@@ -156,19 +191,19 @@ export default function ContactPage() {
                   required
                   value={formData.subject}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none bg-white"
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
                 >
-                  <option value="">Select a subject</option>
-                  <option value="donation">Donation Inquiry</option>
-                  <option value="volunteering">Volunteering</option>
-                  <option value="medical">Medical Question</option>
-                  <option value="media">Media/Press</option>
-                  <option value="other">Other</option>
+                  <option value="">Choose…</option>
+                  <option value="Donation question">Donation question</option>
+                  <option value="Volunteering">Volunteering</option>
+                  <option value="Medical question">Medical question</option>
+                  <option value="Press / media">Press / media</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="message" className="block text-sm font-medium text-foreground mb-1">
                   Message *
                 </label>
                 <textarea
@@ -177,128 +212,45 @@ export default function ContactPage() {
                   required
                   value={formData.message}
                   onChange={handleChange}
-                  placeholder="Your message here..."
                   rows={5}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 font-semibold transition-opacity"
               >
-                {loading ? 'Sending...' : 'Send Message'}
+                {loading ? 'Sending…' : 'Send message'}
               </button>
             </form>
           </div>
 
-          {/* Information Sidebar */}
           <div className="space-y-6">
-            {/* Response Time */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
               <div className="flex items-start gap-4">
-                <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                <Clock className="w-6 h-6 text-primary shrink-0 mt-1" />
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Response Time</h3>
-                  <p className="text-gray-700 text-sm">
-                    We aim to respond to all inquiries within 24 hours. For urgent matters, please call us directly.
+                  <h3 className="font-semibold text-foreground mb-2">Timing</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                    This is a family-run page, not a call centre. A short delay before a reply is normal.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Frequently Asked */}
-            <div className="bg-emerald-50 rounded-lg p-6 border border-emerald-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Quick Answers</h3>
-              <div className="space-y-3">
-                <details className="group cursor-pointer">
-                  <summary className="font-medium text-gray-900 group-open:text-emerald-600">
-                    How do I donate?
-                  </summary>
-                  <p className="text-sm text-gray-700 mt-2 pl-4 border-l-2 border-emerald-300">
-                    You can donate through UPI or bank transfer. Visit our Donation page for detailed instructions.
-                  </p>
-                </details>
-
-                <details className="group cursor-pointer">
-                  <summary className="font-medium text-gray-900 group-open:text-emerald-600">
-                    Is my donation secure?
-                  </summary>
-                  <p className="text-sm text-gray-700 mt-2 pl-4 border-l-2 border-emerald-300">
-                    Yes, all transactions are processed securely through verified payment gateways.
-                  </p>
-                </details>
-
-                <details className="group cursor-pointer">
-                  <summary className="font-medium text-gray-900 group-open:text-emerald-600">
-                    Can I get a receipt?
-                  </summary>
-                  <p className="text-sm text-gray-700 mt-2 pl-4 border-l-2 border-emerald-300">
-                    Yes, you will receive a donation receipt via email after your contribution is confirmed.
-                  </p>
-                </details>
-              </div>
+            <div className="bg-secondary/60 rounded-xl border border-border p-6 text-sm text-muted-foreground leading-relaxed text-pretty">
+              <p className="font-medium text-foreground mb-2">Email delivery</p>
+              <p>
+                Set <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_HOST</code>,{' '}
+                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_PORT</code>,{' '}
+                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_USER</code>, and{' '}
+                <code className="text-xs bg-background px-1 py-0.5 rounded">SMTP_PASS</code> in your environment. Messages
+                are addressed to <span className="text-foreground">sandeepkalyan299@gmail.com</span> unless you override{' '}
+                <code className="text-xs bg-background px-1 py-0.5 rounded">ADMIN_INBOX_EMAIL</code>.
+              </p>
             </div>
-
-            {/* Social Media */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Follow Our Journey</h3>
-              <p className="text-sm text-gray-700 mb-4">
-                Stay updated with regular posts about the campaign progress.
-              </p>
-              <div className="flex gap-3">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                  Facebook
-                </button>
-                <button className="px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 text-sm font-medium transition-colors">
-                  Twitter
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* FAQs Section */}
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
-          
-          <div className="space-y-6">
-            <details className="group border-b border-gray-200 pb-6">
-              <summary className="font-semibold text-gray-900 cursor-pointer group-open:text-emerald-600">
-                Where does the money go?
-              </summary>
-              <p className="text-gray-700 mt-4">
-                Every donation goes directly to medical expenses including hospital fees, surgery costs, medications, and post-operative care. We maintain complete transparency and share regular updates on how funds are being utilized.
-              </p>
-            </details>
-
-            <details className="group border-b border-gray-200 pb-6">
-              <summary className="font-semibold text-gray-900 cursor-pointer group-open:text-emerald-600">
-                How will you use my personal information?
-              </summary>
-              <p className="text-gray-700 mt-4">
-                Your information is used only to process your donation and send receipts. We never share your information with third parties and respect your privacy completely.
-              </p>
-            </details>
-
-            <details className="group border-b border-gray-200 pb-6">
-              <summary className="font-semibold text-gray-900 cursor-pointer group-open:text-emerald-600">
-                Can I donate on behalf of someone?
-              </summary>
-              <p className="text-gray-700 mt-4">
-                Absolutely! You can donate with your name or donate anonymously. Many people like to donate in honor of loved ones or as a group contribution.
-              </p>
-            </details>
-
-            <details className="group pb-6">
-              <summary className="font-semibold text-gray-900 cursor-pointer group-open:text-emerald-600">
-                Will there be updates after the surgery?
-              </summary>
-              <p className="text-gray-700 mt-4">
-                Yes, we will continue to share regular updates about the recovery process and provide final closure once the treatment is complete. Your investment in our family&apos;s journey doesn&apos;t end with the surgery.
-              </p>
-            </details>
           </div>
         </div>
       </div>

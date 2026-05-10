@@ -1,8 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+
+type QrRow = {
+  _id: string;
+  code: number;
+  displayName: string;
+  provider: string;
+  imageUrl?: string | null;
+  isActive?: boolean;
+};
+
+const ROTATE_MS = 9000;
 
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -10,39 +21,44 @@ export default function DonatePage() {
   const [donorName, setDonorName] = useState('');
   const [donorEmail, setDonorEmail] = useState('');
   const [donorPhone, setDonorPhone] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
+  const [qrLoading, setQrLoading] = useState(true);
+  const [selectedQRIndex, setSelectedQRIndex] = useState(0);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
-  const qrCodes = [
-    { 
-      code: 1, 
-      displayName: 'Google Pay', 
-      provider: 'GOOGLE_PAY', 
-      imageUrl: '/qr-1.png',
-      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/google-pay-qr.png'
-    },
-    { 
-      code: 2, 
-      displayName: 'PhonePe', 
-      provider: 'PHONEPE', 
-      imageUrl: '/qr-2.png',
-      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/phonepe-qr.png'
-    },
-    { 
-      code: 3, 
-      displayName: 'Paytm', 
-      provider: 'PAYTM', 
-      imageUrl: '/qr-3.png',
-      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/paytm-qr.png'
-    },
-  ];
+  const loadQr = useCallback(async () => {
+    setQrLoading(true);
+    try {
+      const res = await fetch('/api/qr-codes');
+      const data = await res.json();
+      const list: QrRow[] = (data.qrCodes || []).filter((q: QrRow) => q.isActive !== false);
+      setQrCodes(list);
+      setSelectedQRIndex(0);
+    } catch {
+      setQrCodes([]);
+    } finally {
+      setQrLoading(false);
+    }
+  }, []);
 
-  const [selectedQRIndex, setSelectedQRIndex] = useState(0);
+  useEffect(() => {
+    loadQr();
+  }, [loadQr]);
 
-  const finalAmount = selectedAmount || (customAmount ? parseInt(customAmount) : 0);
+  useEffect(() => {
+    if (qrCodes.length <= 1) return;
+    const t = setInterval(() => {
+      setSelectedQRIndex((i) => (i + 1) % qrCodes.length);
+    }, ROTATE_MS);
+    return () => clearInterval(t);
+  }, [qrCodes.length]);
+
+  const finalAmount = selectedAmount || (customAmount ? parseInt(customAmount, 10) : 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +71,14 @@ export default function DonatePage() {
       return;
     }
 
-    if (!donorName.trim()) {
-      setError('Please enter your name');
+    if (!isAnonymous && !donorName.trim()) {
+      setError('Please enter your name, or mark the gift as anonymous');
+      setLoading(false);
+      return;
+    }
+
+    if (!qrCodes.length) {
+      setError('Payment QR codes are not configured yet. Please try again later.');
       setLoading(false);
       return;
     }
@@ -66,32 +88,33 @@ export default function DonatePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          donorName: donorName,
-          donorEmail: donorEmail,
-          donorPhone: donorPhone,
+          donorName: isAnonymous ? 'Anonymous' : donorName.trim(),
+          donorEmail,
+          donorPhone,
           amount: finalAmount,
           paymentMethod: 'UPI',
-          upiCode: qrCodes[selectedQRIndex].code,
-          isAnonymous: false,
+          upiCode: qrCodes[selectedQRIndex]?.code,
+          isAnonymous,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to process donation');
+        const j = await response.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to process donation');
       }
 
       setSubmitted(true);
-      // Reset form after 3 seconds
       setTimeout(() => {
         setDonorName('');
         setDonorEmail('');
         setDonorPhone('');
         setSelectedAmount(null);
         setCustomAmount('');
+        setIsAnonymous(false);
         setSubmitted(false);
-      }, 3000);
-    } catch (err) {
-      setError('Failed to process donation. Please try again.');
+      }, 3200);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to process donation. Please try again.');
       console.error('Donation error:', err);
     } finally {
       setLoading(false);
@@ -100,16 +123,16 @@ export default function DonatePage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 py-12">
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
         <div className="max-w-2xl mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-            <CheckCircle2 className="w-16 h-16 text-emerald-600 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Thank You!</h2>
-            <p className="text-gray-700 mb-2">
-              Your donation of ₹{finalAmount.toLocaleString('en-IN')} has been recorded.
+          <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
+            <CheckCircle2 className="w-16 h-16 text-primary mx-auto mb-4" />
+            <h2 className="text-3xl font-serif font-bold text-foreground mb-3">Thank you</h2>
+            <p className="text-muted-foreground mb-2 text-pretty">
+              Your gift of ₹{finalAmount.toLocaleString('en-IN')} is recorded as confirmed for this demo flow.
             </p>
-            <p className="text-gray-600">
-              We are grateful for your support. You will receive a confirmation soon.
+            <p className="text-sm text-muted-foreground">
+              In production you would match each UPI payment manually or via a gateway webhook.
             </p>
           </div>
         </div>
@@ -117,25 +140,24 @@ export default function DonatePage() {
     );
   }
 
+  const activeQr = qrCodes[selectedQRIndex];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-emerald-50/40 py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4 text-center">Make Your Donation</h1>
-        <p className="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-          Your contribution will directly support the medical care and recovery process. Every donation, no matter the size, makes a difference.
+        <h1 className="text-4xl font-serif font-bold text-foreground mb-4 text-center text-balance">Donate</h1>
+        <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
+          Choose an amount, then scan the QR that matches your app. QR images are loaded from what the admin saved
+          (typically Cloudinary URLs).
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* Donation Form */}
-          <div className="lg:col-span-1 bg-white rounded-lg shadow-md p-8 h-fit">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Amount</h2>
+          <div className="lg:col-span-1 bg-card rounded-xl border border-border p-8 h-fit shadow-sm">
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Amount</h2>
 
             <form onSubmit={handleSubmit}>
-              {/* Predefined Amounts */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Quick Select
-                </label>
+                <label className="block text-sm font-medium text-foreground mb-3">Quick amounts</label>
                 <div className="grid grid-cols-2 gap-3">
                   {predefinedAmounts.map((amount) => (
                     <button
@@ -147,23 +169,22 @@ export default function DonatePage() {
                       }}
                       className={`p-3 rounded-lg border-2 font-semibold transition-all ${
                         selectedAmount === amount
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300'
+                          ? 'border-primary bg-secondary text-primary'
+                          : 'border-border bg-background text-foreground hover:border-primary/40'
                       }`}
                     >
-                      ₹{(amount / 1000).toFixed(0)}K
+                      ₹{(amount / 1000).toFixed(0)}k
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Custom Amount */}
               <div className="mb-6">
-                <label htmlFor="customAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Custom Amount
+                <label htmlFor="customAmount" className="block text-sm font-medium text-foreground mb-2">
+                  Custom amount
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500 font-semibold">₹</span>
+                  <span className="absolute left-3 top-3 text-muted-foreground font-semibold">₹</span>
                   <input
                     id="customAmount"
                     type="number"
@@ -173,27 +194,34 @@ export default function DonatePage() {
                       setSelectedAmount(null);
                     }}
                     placeholder="Enter amount"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
-                    min="100"
+                    className="w-full pl-8 pr-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                    min={100}
                   />
                 </div>
               </div>
 
-              {/* Display Selected Amount */}
               {finalAmount > 0 && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                  <p className="text-sm text-gray-600">Donation Amount</p>
-                  <p className="text-2xl font-bold text-emerald-600">
-                    ₹{finalAmount.toLocaleString('en-IN')}
-                  </p>
+                <div className="mb-6 p-4 bg-secondary rounded-lg border border-border">
+                  <p className="text-sm text-muted-foreground">You are giving</p>
+                  <p className="text-2xl font-bold text-primary">₹{finalAmount.toLocaleString('en-IN')}</p>
                 </div>
               )}
 
-              {/* Donor Information */}
               <div className="mb-6 space-y-3">
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  Give anonymously on the public list
+                </label>
+
+                {!isAnonymous && (
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name *
+                    <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
+                      Name <span className="text-destructive">*</span>
                     </label>
                     <input
                       id="name"
@@ -201,121 +229,128 @@ export default function DonatePage() {
                       value={donorName}
                       onChange={(e) => setDonorName(e.target.value)}
                       placeholder="Your name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
                     />
                   </div>
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={donorEmail}
-                      onChange={(e) => setDonorEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      id="phone"
-                      type="tel"
-                      value={donorPhone}
-                      onChange={(e) => setDonorPhone(e.target.value)}
-                      placeholder="+91-XXXXXXXXXX"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
-                    />
-                  </div>
+                )}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={donorEmail}
+                    onChange={(e) => setDonorEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
+                    Phone
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={donorPhone}
+                    onChange={(e) => setDonorPhone(e.target.value)}
+                    placeholder="+91 …"
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/30 outline-none"
+                  />
+                </div>
               </div>
 
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-sm text-destructive">{error}</p>
                 </div>
               )}
 
               <button
                 type="submit"
-                disabled={loading || !finalAmount}
-                className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+                disabled={loading || !finalAmount || qrLoading}
+                className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity font-semibold"
               >
-                {loading ? 'Processing...' : 'Confirm Donation'}
+                {loading ? 'Saving…' : 'Confirm donation'}
               </button>
             </form>
           </div>
 
-          {/* QR Code Display */}
           <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Scan to Donate</h2>
-                
-                <div className="flex flex-col items-center">
-                  <QRCodeDisplay qrCode={qrCodes[selectedQRIndex]} />
-                </div>
-
-                {/* QR Code Selector */}
-                <div className="mt-8">
-                  <p className="text-sm font-medium text-gray-700 mb-4">Choose your preferred payment app:</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {qrCodes.map((qr, index) => (
-                      <button
-                        key={qr.code}
-                        onClick={() => setSelectedQRIndex(index)}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          selectedQRIndex === index
-                            ? 'border-emerald-600 bg-emerald-50'
-                            : 'border-gray-200 bg-white hover:border-emerald-300'
-                        }`}
-                      >
-                        <p className="font-semibold text-gray-900">{qr.displayName}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Instructions */}
-                <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-3">How to Donate via UPI</h3>
-                  <ol className="space-y-2 text-sm text-blue-900 list-decimal list-inside">
-                    <li>Open your preferred payment app (Google Pay, PhonePe, or Paytm)</li>
-                    <li>Scan the QR code displayed above</li>
-                    <li>Enter the donation amount: ₹{finalAmount.toLocaleString('en-IN')}</li>
-                    <li>Confirm and complete the payment</li>
-                    <li>Your donation will be recorded automatically</li>
-                  </ol>
-                </div>
+            <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+                <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
+                {qrCodes.length > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Rotates every {ROTATE_MS / 1000}s so people notice each option—you can still tap a card below.
+                  </p>
+                )}
               </div>
+
+              {qrLoading ? (
+                <p className="text-center text-muted-foreground py-16">Loading payment options…</p>
+              ) : !activeQr ? (
+                <p className="text-center text-muted-foreground py-16 text-pretty">
+                  No QR codes yet. Sign in to the admin dashboard, open &quot;QR codes&quot;, and paste a Cloudinary
+                  image URL for each provider.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-col items-center">
+                    <QRCodeDisplay
+                      qrCode={{
+                        code: activeQr.code,
+                        displayName: activeQr.displayName,
+                        provider: activeQr.provider,
+                        imageUrl: activeQr.imageUrl || undefined,
+                        cloudinaryUrl: activeQr.imageUrl || undefined,
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-8">
+                    <p className="text-sm font-medium text-foreground mb-4">Choose app</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {qrCodes.map((qr, index) => (
+                        <button
+                          key={qr._id}
+                          type="button"
+                          onClick={() => setSelectedQRIndex(index)}
+                          className={`p-4 rounded-lg border-2 text-left transition-all ${
+                            selectedQRIndex === index
+                              ? 'border-primary bg-secondary'
+                              : 'border-border bg-background hover:border-primary/40'
+                          }`}
+                        >
+                          <p className="font-semibold text-foreground">{qr.displayName}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Code {qr.code}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-8 p-6 bg-secondary/80 border border-border rounded-lg">
+                <h3 className="font-semibold text-foreground mb-3">How UPI works here</h3>
+                <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside text-pretty">
+                  <li>Open your UPI app and scan the code.</li>
+                  <li>Send exactly ₹{finalAmount > 0 ? finalAmount.toLocaleString('en-IN') : '…'} when you pay.</li>
+                  <li>This page records an intent for the demo; reconcile real bank/UPI statements in admin.</li>
+                </ol>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Transparency Section */}
-        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Our Commitment to Transparency</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Direct Support</h3>
-              <p className="text-gray-700 text-sm">
-                100% of donations go directly to medical expenses. No hidden charges or middlemen.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Regular Updates</h3>
-              <p className="text-gray-700 text-sm">
-                Detailed updates on the treatment progress and how funds are being used.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Public Records</h3>
-              <p className="text-gray-700 text-sm">
-                All donations are publicly listed to maintain trust and accountability.
-              </p>
-            </div>
-          </div>
+        <div className="bg-card rounded-xl border border-border p-8">
+          <h2 className="text-2xl font-serif font-bold text-foreground mb-4">Transparency</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed text-pretty max-w-3xl">
+            Totals on the home page are calculated from confirmed donations in the database. Medical files and QR
+            artwork are ordinary URLs—Cloudinary is a good fit, but any HTTPS link the admin saves will work.
+          </p>
         </div>
       </div>
     </div>

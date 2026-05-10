@@ -1,27 +1,38 @@
 import Link from 'next/link';
 import { Heart, Mail, Phone } from 'lucide-react';
+import { connectDB } from '@/lib/mongodb';
+import { CampaignSettings } from '@/lib/models';
 
-export default function Footer() {
+export default async function Footer() {
   const currentYear = new Date().getFullYear();
+  let email = process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com';
+  let phone = '+91 00000 00000';
+
+  try {
+    await connectDB();
+    const s = await CampaignSettings.findOne().sort({ createdAt: 1 }).lean();
+    if (s?.emailContact) email = s.emailContact;
+    if (s?.phoneContact) phone = s.phoneContact;
+  } catch {
+    /* offline build / missing URI */
+  }
 
   return (
     <footer className="bg-foreground text-background border-t border-border">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                 <Heart className="w-5 h-5 text-primary-foreground fill-primary-foreground" />
               </div>
-              <h3 className="font-serif font-bold text-xl text-background">Help Dad</h3>
+              <h3 className="font-serif font-bold text-xl text-background">Family fundraiser</h3>
             </div>
-            <p className="text-background/80 text-sm leading-relaxed">
-              A family&apos;s journey toward hope and healing. Your generosity gives us strength every day.
+            <p className="text-background/80 text-sm leading-relaxed text-pretty">
+              Thank you for reading. If you donate, your name appears only when you ask us to show it.
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Navigate</h4>
             <ul className="space-y-2">
@@ -48,7 +59,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Support */}
           <div>
             <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Support</h4>
             <ul className="space-y-2">
@@ -70,23 +80,22 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
-            <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Reach Us</h4>
+            <h4 className="font-semibold text-background mb-4 text-sm uppercase tracking-wide">Reach us</h4>
             <div className="space-y-3">
               <a
-                href="mailto:contact@example.com"
-                className="flex items-center gap-2 text-background/70 hover:text-background transition-colors text-sm"
+                href={`mailto:${email}`}
+                className="flex items-center gap-2 text-background/70 hover:text-background transition-colors text-sm break-all"
               >
-                <Mail className="w-4 h-4" />
-                <span>contact@example.com</span>
+                <Mail className="w-4 h-4 shrink-0" />
+                <span>{email}</span>
               </a>
               <a
-                href="tel:+919999999999"
+                href={`tel:${phone.replace(/\s/g, '')}`}
                 className="flex items-center gap-2 text-background/70 hover:text-background transition-colors text-sm"
               >
-                <Phone className="w-4 h-4" />
-                <span>+91 99999 99999</span>
+                <Phone className="w-4 h-4 shrink-0" />
+                <span>{phone}</span>
               </a>
             </div>
           </div>
@@ -94,20 +103,9 @@ export default function Footer() {
 
         <div className="border-t border-background/20 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-background/70 text-sm">
-              &copy; {currentYear} Help Dad&apos;s Surgery. Made with love.
+            <p className="text-background/70 text-sm text-center md:text-left">
+              &copy; {currentYear} Campaign site. Built for clarity, not noise.
             </p>
-            <div className="flex gap-6">
-              <a href="#" className="text-background/70 hover:text-background transition-colors text-xs uppercase tracking-wide">
-                Facebook
-              </a>
-              <a href="#" className="text-background/70 hover:text-background transition-colors text-xs uppercase tracking-wide">
-                Twitter
-              </a>
-              <a href="#" className="text-background/70 hover:text-background transition-colors text-xs uppercase tracking-wide">
-                Instagram
-              </a>
-            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,9 @@
 import { connectDB } from '@/lib/mongodb';
 import { CampaignSettings } from '@/lib/models';
 import { campaignSettingsSchema } from '@/lib/validations';
+import { requireAdmin } from '@/lib/require-admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
         fatherName: 'Father Name',
         fatherAge: 50,
         hospitalName: 'Hospital Name',
-        emailContact: 'contact@example.com',
+        emailContact: process.env.ADMIN_EMAIL || 'sandeepkalyan299@gmail.com',
         phoneContact: '+91-9999999999',
         allowPublicMessages: true,
       });
@@ -40,6 +42,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
 
     const validatedData = campaignSettingsSchema.parse(body);
@@ -60,12 +65,12 @@ export async function PUT(request: NextRequest) {
       success: true,
       settings,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Settings update error:', error);
 
-    if (error.name === 'ZodError') {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: 'Invalid settings data', details: error.errors },
+        { error: 'Invalid settings data', details: error.flatten() },
         { status: 400 }
       );
     }

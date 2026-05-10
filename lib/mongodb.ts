@@ -33,5 +33,8 @@ export async function connectDB() {
     throw e;
   }
 
+  const { ensureApplicationDefaults } = await import('@/lib/ensure-seed');
+  await ensureApplicationDefaults();
+
   return cached.conn;
 }

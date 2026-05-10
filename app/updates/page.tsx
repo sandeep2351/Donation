@@ -1,71 +1,55 @@
+import Link from 'next/link';
 import UpdateCard from '@/components/UpdateCard';
+import { connectDB } from '@/lib/mongodb';
+import { CampaignUpdate } from '@/lib/models';
 
-export default function UpdatesPage() {
-  const updates = [
-    {
-      id: 1,
-      title: 'Dad has completed initial tests',
-      content: 'All the preliminary medical tests have been completed successfully. The doctors are optimistic about the surgery schedule. We are grateful for all the support we have received so far.',
-      author: 'Family',
-      date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 2,
-      title: 'Fundraising milestone reached',
-      content: 'We have reached 40% of our fundraising goal! This would not have been possible without your kindness and generosity. Every donation brings us closer to the surgery date.',
-      author: 'Family',
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 3,
-      title: 'Hospital admission scheduled',
-      content: 'We are happy to announce that the hospital has scheduled the pre-operative admissions for next month. The surgical team has reviewed all medical reports and confirmed the surgery date.',
-      author: 'Family',
-      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 4,
-      title: 'Campaign launched successfully',
-      content: 'Our fundraising campaign for Dad\'s lung transplant surgery has officially launched. We appreciate every single donation, support, and kind word we receive during this challenging time.',
-      author: 'Family',
-      date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
+export const dynamic = 'force-dynamic';
+
+export default async function UpdatesPage() {
+  await connectDB();
+  const updates = await CampaignUpdate.find({ isPublished: true }).sort({ date: -1 }).lean();
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-blue-50 min-h-screen">
+    <div className="bg-gradient-to-br from-stone-50 via-background to-emerald-50/30 min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 text-center">
-          Campaign Updates
+        <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4 text-center text-balance">
+          Campaign updates
         </h1>
-        <p className="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
-          Stay informed with regular updates on the treatment progress and journey. We believe in keeping you connected every step of the way.
+        <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
+          These posts are published from the admin dashboard. Images can be loaded from Cloudinary like anywhere else
+          on the site.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {updates.map((update) => (
-            <UpdateCard
-              key={update.id}
-              title={update.title}
-              content={update.content}
-              author={update.author}
-              date={update.date}
-            />
-          ))}
-        </div>
-
-        {/* Contact CTA */}
-        <div className="mt-16 bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-lg shadow-md p-8 text-white text-center">
-          <h2 className="text-2xl font-bold mb-4">Have Questions?</h2>
-          <p className="mb-6 text-emerald-100">
-            We are here to answer any questions about the campaign or the treatment. Feel free to reach out to us.
+        {updates.length === 0 ? (
+          <p className="text-center text-muted-foreground py-16 border border-dashed border-border rounded-xl bg-card">
+            Nothing published yet. Check back soon.
           </p>
-          <a
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {updates.map((u) => (
+              <UpdateCard
+                key={String(u._id)}
+                title={u.title}
+                content={u.content}
+                author={u.author}
+                date={new Date(u.date).toISOString()}
+                imageUrl={u.imageUrl}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-16 bg-primary text-primary-foreground rounded-xl p-8 text-center">
+          <h2 className="text-2xl font-serif font-bold mb-4">Questions?</h2>
+          <p className="mb-6 text-primary-foreground/90 text-pretty max-w-xl mx-auto">
+            If something is unclear, send a note through the contact form and the family will get it by email.
+          </p>
+          <Link
             href="/contact"
-            className="inline-block px-6 py-3 bg-white text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors font-semibold"
+            className="inline-block px-6 py-3 bg-primary-foreground text-primary rounded-full hover:opacity-95 transition-opacity font-medium"
           >
-            Contact Us
-          </a>
+            Contact
+          </Link>
         </div>
       </div>
     </div>

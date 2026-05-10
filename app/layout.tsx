@@ -10,8 +10,8 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Help Dad\'s Surgery - Lung Transplant Fundraising',
-  description: 'Support our father\'s lung transplant surgery. Every donation helps save a life. Transparent tracking of medical expenses and progress updates.',
-  generator: 'v0.app',
+  description:
+    'Support our father\'s lung transplant surgery. Every donation helps save a life. Transparent tracking of medical expenses and progress updates.',
   icons: {
     icon: [
       {

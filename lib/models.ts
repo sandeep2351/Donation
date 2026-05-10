@@ -32,6 +32,8 @@ export interface IDonation extends Document {
   transactionId?: string;
   status: 'PENDING' | 'CONFIRMED' | 'RECEIVED';
   notes?: string;
+  /** Internal notes visible only in admin dashboard */
+  adminNotes?: string;
   isAnonymous: boolean;
   createdAt: Date;
   confirmedAt?: Date;
@@ -51,6 +53,7 @@ const donationSchema = new Schema<IDonation>(
     transactionId: String,
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'RECEIVED'], default: 'PENDING' },
     notes: String,
+    adminNotes: String,
     isAnonymous: { type: Boolean, default: false },
     confirmedAt: Date,
     confirmedBy: String,
@@ -95,6 +98,11 @@ export interface IMedicalReport extends Document {
   documentUrl?: string;
   documentCloudinaryId?: string;
   documentFileName?: string;
+  /** image | raw (PDF and other non-image uploads in Cloudinary) */
+  documentResourceType?: 'image' | 'raw';
+  documentMimeType?: string;
+  fileSizeBytes?: number;
+  uploadedBy?: string;
   date: Date;
   doctorName?: string;
   hospital?: string;
@@ -114,6 +122,10 @@ const medicalReportSchema = new Schema<IMedicalReport>(
     documentUrl: String,
     documentCloudinaryId: String,
     documentFileName: String,
+    documentResourceType: { type: String, enum: ['image', 'raw'] },
+    documentMimeType: String,
+    fileSizeBytes: Number,
+    uploadedBy: String,
     date: { type: Date, required: true },
     doctorName: String,
     hospital: String,

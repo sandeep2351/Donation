@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Heart } from 'lucide-react';
+import { Menu, X, Heart, Shield } from 'lucide-react';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,8 +45,14 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* CTA Button - Desktop */}
-          <div className="hidden md:block">
+          {/* CTA - Desktop */}
+          <div className="hidden md:flex items-center gap-2">
+            <Link
+              href="/admin"
+              className="px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-full hover:bg-secondary transition-colors"
+            >
+              Staff
+            </Link>
             <Link
               href="/donate"
               className="px-6 py-2.5 bg-primary text-primary-foreground rounded-full hover:shadow-lg transform hover:scale-105 transition-all font-medium text-sm"
@@ -89,6 +95,14 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Donate Now
+            </Link>
+            <Link
+              href="/admin"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-secondary"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Shield className="w-4 h-4" />
+              Staff login
             </Link>
           </div>
         )}

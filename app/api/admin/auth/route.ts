@@ -8,15 +8,28 @@ import {
   removeAuthCookie 
 } from '@/lib/auth';
 import { adminLoginSchema } from '@/lib/validations';
+import { getCurrentAdmin } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
-    
+
+    if (action === 'check') {
+      const admin = await getCurrentAdmin();
+      if (!admin) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      }
+      return NextResponse.json({
+        success: true,
+        admin: { username: admin.username, adminId: admin.adminId },
+      });
+    }
+
     await connectDB();
-    
+
     if (action === 'login') {
       const { username, password } = adminLoginSchema.parse(body);
       
@@ -120,14 +133,11 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid action' },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Auth error:', error);
-    
-    if (error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: 'Invalid input data' },
-        { status: 400 }
-      );
+
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
     
     return NextResponse.json(

@@ -1,21 +1,28 @@
 import { connectDB } from '@/lib/mongodb';
 import { MedicalReport } from '@/lib/models';
 import { medicalReportSchema } from '@/lib/validations';
+import { requireAdmin } from '@/lib/require-admin';
+import { getCurrentAdmin } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
+    const admin = await getCurrentAdmin();
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
 
-    let query: any = { isPublic: true };
-    if (category) {
+    const query: Record<string, unknown> = {};
+    if (!admin) {
+      query.isPublic = true;
+    }
+    if (category && category !== 'all') {
       query.category = category;
     }
 
-    const reports = await MedicalReport.find(query).sort({ date: -1 });
+    const reports = await MedicalReport.find(query).sort({ date: -1 }).lean();
 
     return NextResponse.json({
       reports,
@@ -23,47 +30,44 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Medical report fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch medical reports' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch medical reports' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
 
+    const body = await request.json();
     const validatedData = medicalReportSchema.parse(body);
 
     await connectDB();
 
     const report = new MedicalReport({
       ...validatedData,
-      documentUrl: body.documentUrl,
-      documentCloudinaryId: body.documentCloudinaryId,
-      documentFileName: body.documentFileName,
+      documentUrl: validatedData.documentUrl || undefined,
+      documentCloudinaryId: body.documentCloudinaryId || validatedData.documentCloudinaryId,
+      documentFileName: validatedData.documentFileName || body.documentFileName,
+      documentMimeType: validatedData.documentMimeType ?? body.documentMimeType,
+      documentResourceType: validatedData.documentResourceType ?? body.documentResourceType,
+      fileSizeBytes: validatedData.fileSizeBytes ?? body.fileSizeBytes,
+      uploadedBy: auth.username,
     });
 
     await report.save();
 
-    return NextResponse.json(
-      { success: true, report },
-      { status: 201 }
-    );
-  } catch (error: any) {
+    return NextResponse.json({ success: true, report }, { status: 201 });
+  } catch (error: unknown) {
     console.error('Medical report creation error:', error);
 
-    if (error.name === 'ZodError') {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: 'Invalid report data', details: error.errors },
+        { error: 'Invalid report data', details: error.flatten() },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { error: 'Failed to create medical report' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create medical report' }, { status: 500 });
   }
 }

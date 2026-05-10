@@ -155,9 +155,14 @@ export default function AdminLoginPage() {
           </button>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
-          <p className="font-semibold mb-2">Demo Credentials:</p>
-          <p>Use any username/password to register first-time account</p>
+        <div className="mt-6 p-4 bg-secondary border border-border rounded-lg text-xs text-muted-foreground leading-relaxed">
+          <p className="font-medium text-foreground mb-1">First-time setup</p>
+          <p>
+            If the database was empty, an admin user is created automatically on first server connection (see{' '}
+            <code className="text-[11px] bg-background px-1 rounded">ADMIN_USERNAME</code> /{' '}
+            <code className="text-[11px] bg-background px-1 rounded">ADMIN_PASSWORD</code> in your environment). Use
+            the regular login form above—do not post passwords on the public site.
+          </p>
         </div>
       </div>
     </div>
