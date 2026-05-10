@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
+import { buildUpiPayUri } from '@/lib/upi-intent';
+import type { UpiAppTab } from '@/lib/upi-intent';
+import {
+  isEmbeddedBrowserLikelyBreakingUpi,
+  isLikelyDesktopWithoutNativeUpi,
+} from '@/lib/in-app-browser';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 type QrRow = {
@@ -9,6 +16,7 @@ type QrRow = {
   code: number;
   displayName: string;
   provider: string;
+  upiString?: string;
   imageUrl?: string | null;
   isActive?: boolean;
 };
@@ -23,6 +31,12 @@ const UPI_APP_CHOICES = [
 ] as const;
 
 type UpiAppId = (typeof UPI_APP_CHOICES)[number]['id'];
+
+const TAB_TO_PREFERRED: Record<UpiAppId, UpiAppTab | 'ANY'> = {
+  GOOGLE_PAY: 'GOOGLE_PAY',
+  PHONEPE: 'PHONEPE',
+  PAYTM: 'PAYTM',
+};
 
 /** Stagger: Google Pay → pool[i], PhonePe → pool[i+1], Paytm → pool[i+2] (mod pool size). */
 const APP_SLOT_OFFSET: Record<UpiAppId, number> = {
@@ -45,6 +59,14 @@ export default function DonatePage() {
   /** Increments every 30s when the pool has more than one slot; each app uses (tick + offset) % pool size. */
   const [rotationTick, setRotationTick] = useState(0);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiAppId>('GOOGLE_PAY');
+  const [payLinkOpened, setPayLinkOpened] = useState(false);
+  const [badInAppBrowser, setBadInAppBrowser] = useState(false);
+  const [desktopNoUpi, setDesktopNoUpi] = useState(false);
+
+  useEffect(() => {
+    setBadInAppBrowser(isEmbeddedBrowserLikelyBreakingUpi());
+    setDesktopNoUpi(isLikelyDesktopWithoutNativeUpi());
+  }, []);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
@@ -89,6 +111,15 @@ export default function DonatePage() {
     poolLen === 0 ? 0 : (rotationTick + APP_SLOT_OFFSET[app]) % poolLen;
 
   const activeQr = poolLen === 0 ? null : qrPool[slotIndexForApp(selectedUpiApp)];
+
+  const upiPayHref = useMemo(() => {
+    if (!activeQr || finalAmount < 100) return null;
+    return buildUpiPayUri(activeQr.upiString, finalAmount, 'Donation');
+  }, [activeQr, finalAmount]);
+
+  useEffect(() => {
+    setPayLinkOpened(false);
+  }, [upiPayHref, selectedUpiApp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,6 +345,30 @@ export default function DonatePage() {
                 </p>
               ) : (
                 <>
+                  {desktopNoUpi && (
+                    <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-sky-50 border border-sky-200 text-sky-950">
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden />
+                      <div className="text-sm text-pretty">
+                        <strong className="font-semibold">You&apos;re on a laptop or desktop.</strong> The green Pay
+                        button is disabled here — UPI is built for phones. If you already clicked Pay and saw
+                        WhatsApp or another wrong app, that&apos;s normal on Mac/PC: the browser doesn&apos;t have UPI.
+                        Open this same page on your <strong>phone</strong> (or scan the QR with your phone).
+                      </div>
+                    </div>
+                  )}
+                  {badInAppBrowser && !desktopNoUpi && (
+                    <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-950">
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden />
+                      <div className="text-sm text-pretty">
+                        <strong className="font-semibold">Opened from WhatsApp or another in-app browser?</strong>{' '}
+                        <code className="text-xs bg-amber-100/80 px-1 rounded">upi://</code> links often open the wrong
+                        app here (e.g. WhatsApp). Use{' '}
+                        <strong className="font-semibold">Open in browser</strong> (menu ⋮ or share → Chrome / Safari),
+                        then tap <strong className="font-semibold">Pay</strong> again. Or open this donate page
+                        directly in Chrome or PhonePe&apos;s browser.
+                      </div>
+                    </div>
+                  )}
                   <div className="mb-6">
                     <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
                       <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -349,10 +404,10 @@ export default function DonatePage() {
                       })}
                     </div>
                     <p className="mt-3 text-sm text-muted-foreground text-pretty">
-                      Open{' '}
-                      {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your UPI app'} and scan the QR
-                      below. Each app rotates through the pool on its own lane, so different apps may show different
-                      QRs at the same moment.
+                      Use <strong className="text-foreground font-medium">Pay with UPI</strong> below to open your UPI
+                      app with this amount, or scan the QR. If your phone asks which app to use, pick{' '}
+                      {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your preferred app'} (or any
+                      UPI app). Slots rotate per app every {ROTATE_POOL_MS / 1000}s when you have several codes.
                     </p>
                   </div>
 
@@ -363,20 +418,59 @@ export default function DonatePage() {
                         imageUrl: activeQr.imageUrl || undefined,
                         cloudinaryUrl: activeQr.imageUrl || undefined,
                       }}
+                      payHref={upiPayHref}
+                      payAmountRupees={finalAmount}
+                      preferredUpiApp={TAB_TO_PREFERRED[selectedUpiApp]}
+                      onPayClick={() => setPayLinkOpened(true)}
+                      blockDesktopPay={desktopNoUpi}
                     />
+                  </div>
+
+                  <div className="mt-6 w-full max-w-md mx-auto space-y-4">
+                    {finalAmount >= 100 && !upiPayHref && (
+                      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200/90 rounded-lg px-3 py-2 text-pretty">
+                        This QR slot needs a valid <strong>UPI link</strong> in admin (QR codes → <strong>UPI string</strong>{' '}
+                        column). See the setup guide: UPI ID is only the address (e.g. <code className="text-xs">name@paytm</code>
+                        ); the UPI string is the full <code className="text-xs">upi://pay?pa=…</code> link.
+                      </p>
+                    )}
+                    {upiPayHref && finalAmount >= 100 && !desktopNoUpi && (
+                      <p className="text-xs text-center text-muted-foreground text-pretty">
+                        On Android, Pay tries to open{' '}
+                        <strong className="text-foreground">{UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label}</strong>
+                        ; you can still pick another app if shown. On iPhone you may get a list of UPI apps. Confirm the
+                        amount before paying.
+                      </p>
+                    )}
+                    {payLinkOpened && upiPayHref && !desktopNoUpi && (
+                      <div className="rounded-xl border border-border bg-secondary/60 px-4 py-3 text-sm text-foreground/90 space-y-2">
+                        <p className="text-pretty">
+                          Finish payment in the UPI app, then return to this tab in your browser.
+                        </p>
+                        <Link
+                          href="/donate/thank-you"
+                          className="inline-flex font-medium text-primary hover:underline"
+                        >
+                          I&apos;m done — go to thank you page
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
 
               <div className="mt-8 p-6 bg-secondary/80 border border-border rounded-lg">
-                <h3 className="font-semibold text-foreground mb-3">How UPI works here</h3>
+                <h3 className="font-semibold text-foreground mb-3">How paying works</h3>
                 <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside text-pretty">
                   <li>
-                    Open{' '}
-                    {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your UPI app'} and scan the code.
+                    Enter your amount on the left, then tap <strong className="text-foreground">Pay with UPI</strong>{' '}
+                    or scan the QR.
                   </li>
-                  <li>Send exactly ₹{finalAmount > 0 ? finalAmount.toLocaleString('en-IN') : '…'} when you pay.</li>
-                  <li>This page records an intent for the demo; reconcile real bank/UPI statements in admin.</li>
+                  <li>Confirm ₹{finalAmount > 0 ? finalAmount.toLocaleString('en-IN') : '…'} in your UPI app.</li>
+                  <li>
+                    Tap <strong className="text-foreground">Confirm donation</strong> on the form when you&apos;re
+                    ready so we can record your gift (verify payments in admin if needed).
+                  </li>
                 </ol>
               </div>
             </div>

@@ -108,7 +108,16 @@ export type QRCodeInput = z.infer<typeof qrCodeSchema>;
 
 export const qrCodeUpdateSchema = z.object({
   imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
-  upiString: z.string().min(3).optional(),
+  upiString: z
+    .union([
+      z.literal(''),
+      z
+        .string()
+        .min(10)
+        .max(2048)
+        .regex(/^upi:\/\/pay\?/i, 'Must look like upi://pay?pa=...'),
+    ])
+    .optional(),
   displayName: z.string().min(1).max(120).optional(),
   isActive: z.boolean().optional(),
 });

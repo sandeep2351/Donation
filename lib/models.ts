@@ -64,6 +64,7 @@ const donationSchema = new Schema<IDonation>(
 // QR Code Model
 export interface IQRCode extends Document {
   code: number;
+  /** NPCI payment URI, e.g. `upi://pay?pa=vpa@bank&pn=Name&cu=INR` — not the same as UPI ID alone; see SETUP.md */
   upiString: string;
   /** POOL = shared rotation slot; legacy rows may still use app-specific enums. */
   provider: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'POOL';

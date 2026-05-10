@@ -165,12 +165,37 @@ This guide will walk you through setting up all the required services and deploy
      - Contact Email & Phone
    - Click "Save"
 
-3. **Add QR Codes**
-   - In Admin Dashboard > QR Codes section
-   - Add your UPI payment details:
-     - For Google Pay: upi://pay?pa=yourname@googleplay&pn=YourName
-     - For PhonePe: (PhonePe QR format)
-     - For Paytm: (Paytm QR format)
+3. **Add QR codes and UPI string (for Pay button + QR)**
+
+   **UPI ID vs UPI string — not the same**
+   - **UPI ID** (also called VPA): the address only, e.g. `yourname@paytm`, `family@ybl`, `merchant@phonepe`. It identifies *who* receives money.
+   - **UPI string**: a full **payment link** the phone understands, always starting with `upi://pay?` and query parameters. Example:
+     `upi://pay?pa=yourname@paytm&pn=Your%20Display%20Name&cu=INR`
+   - The site stores the **UPI string** in each QR slot’s **UPI string** column (admin → QR codes). The donate page adds the **amount** (`am`) when the donor taps **Pay**.
+
+   **PhonePe (and most apps) never show the words “UPI string”**  
+   That label is only on **your website’s admin** field. In PhonePe you see **UPI ID** (e.g. `8367331109@ybl`) under your QR — that is the **address** part. You turn it into a UPI string by adding `upi://pay?pa=...&pn=...&cu=INR` (see below).
+
+   **How to fill the admin “UPI string” field**
+
+   1. **Copy your UPI ID from PhonePe**  
+      Open **Profile / My QR** (or **My QR**). Note the line **UPI ID:** `something@ybl` (or `@ibl`, etc.). Tap **View UPI details** if you need to see or pick the ID.
+
+   2. **Type this one line** into admin → QR codes → **UPI string** (replace with your real values):  
+      `upi://pay?pa=8367331109@ybl&pn=Sandy&cu=INR`  
+      - **`pa`** = your UPI ID **exactly** as shown (e.g. `8367331109@ybl`).  
+      - **`pn`** = short name shown to payers (no spaces, or use `%20` for a space, e.g. `Sandy%20K`).  
+      - **`cu`** = always `INR` for India.  
+      Do **not** add `am=` here — the donate page adds the amount when someone taps **Pay**.
+
+   3. **Optional — if another app offers “Copy payment link”**  
+      Some apps expose the full `upi://pay?...` text; you can paste that as-is (remove any `am=` if you want the site to control amount).
+
+   **Same idea in one line:**  
+   `upi://pay?pa=YOUR_UPI_ID&pn=YOUR_NAME&cu=INR`
+
+   **Image URL**  
+   Upload or paste the QR **image** URL (e.g. Cloudinary) as today — it should match the same VPA as the UPI string.
 
 4. **Add Medical Documents**
    - Go to Admin Dashboard > Medical Reports
@@ -234,6 +259,20 @@ document.cookie = "admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
 - Check build logs in Vercel dashboard
 - Ensure all environment variables are set
 - Try redeploying: `git push origin main`
+
+### Pay / `upi://` link opens WhatsApp or the wrong app
+
+This almost always means the donate page was opened **inside WhatsApp** (or Instagram/Facebook in-app browser). Those webviews do not handle UPI deep links the same way as **Chrome** or **Safari**.
+
+**Fix:** Open the site in a real browser: from WhatsApp tap **⋮** (or **Share**) → **Open in Chrome** / **Open in Safari** — then use **Pay** again. Do not paste `upi://pay?...` into a WhatsApp chat and tap it there; open the **donate page** in the browser and use the green **Pay** button.
+
+If Android still shows the wrong app after opening in Chrome, pick **PhonePe** (or your bank app) in the system **“Open with”** list when it appears.
+
+### Pay on a Mac or Windows laptop opens WhatsApp (or nothing useful)
+
+**That is expected, not a bug in your UPI string.** UPI (`upi://`) is meant for **phones** (Android / iPhone). On a laptop, Chrome may send the link to whatever app registered the scheme—sometimes **WhatsApp**—or fail silently.
+
+**Fix:** Open the donate page on your **phone** and tap **Pay**, or **scan the QR** with PhonePe (or any UPI app) on the phone. The live site disables the Pay button on desktop and explains this in the UI.
 
 ## Security Checklist
 

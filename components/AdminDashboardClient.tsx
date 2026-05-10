@@ -30,6 +30,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [qrList, setQrList] = useState<Record<string, unknown>[]>([]);
   const [qrEdits, setQrEdits] = useState<Record<string, string>>({});
+  const [qrUpiStringEdits, setQrUpiStringEdits] = useState<Record<string, string>>({});
   const [qrLabelEdits, setQrLabelEdits] = useState<Record<string, string>>({});
   const [qrAddBusy, setQrAddBusy] = useState(false);
 
@@ -92,13 +93,16 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       const list = d.qrCodes || [];
       setQrList(list);
       const edits: Record<string, string> = {};
+      const upiEdits: Record<string, string> = {};
       const labels: Record<string, string> = {};
       for (const q of list) {
         const id = String(q._id);
         edits[id] = (q.imageUrl as string) || '';
+        upiEdits[id] = String((q as { upiString?: string }).upiString || '');
         labels[id] = String(q.displayName || '');
       }
       setQrEdits(edits);
+      setQrUpiStringEdits(upiEdits);
       setQrLabelEdits(labels);
     } catch {
       setQrList([]);
@@ -301,12 +305,14 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const saveQr = async (id: string) => {
     try {
       const label = (qrLabelEdits[id] || '').trim();
+      const upi = (qrUpiStringEdits[id] || '').trim();
       const r = await fetch(`/api/qr-codes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: qrEdits[id] || '',
           ...(label.length > 0 ? { displayName: label } : {}),
+          ...(upi.length > 0 ? { upiString: upi } : {}),
         }),
       });
       if (!r.ok) throw new Error('patch failed');
@@ -613,9 +619,10 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
             <div>
               <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
               <p className="text-muted-foreground text-sm max-w-2xl text-pretty mt-1">
-                One shared pool for all apps on the donate page. Google Pay, PhonePe, and Paytm each rotate through{' '}
-                <strong>every</strong> slot below every 30 seconds. Upload images to Cloudinary (
-                <code className="text-xs bg-secondary px-1 rounded">qr_codes</code>) or paste URLs.
+                One shared pool for all apps on the donate page.                 Set each slot&apos;s <strong>UPI string</strong> (
+                <code className="text-xs bg-secondary px-1 rounded">upi://pay?pa=…</code>) — not the same as UPI ID
+                alone. The <strong>Pay</strong> button on the donate page uses this link plus the donor&apos;s amount.
+                Upload QR images to Cloudinary or paste image URLs.
               </p>
             </div>
             <button
@@ -631,11 +638,12 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
             <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
-              <table className="w-full text-sm min-w-[900px]">
+              <table className="w-full text-sm min-w-[72rem]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
                     <th className="px-3 py-3 text-left font-semibold text-foreground">#</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Label</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground">UPI string</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Image URL</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Upload</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Actions</th>
@@ -660,6 +668,15 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               value={qrLabelEdits[id] ?? ''}
                               onChange={(e) => setQrLabelEdits((m) => ({ ...m, [id]: e.target.value }))}
                               placeholder="Label"
+                            />
+                          </td>
+                          <td className="px-3 py-3 min-w-[200px] max-w-[280px]">
+                            <input
+                              className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-[11px] font-mono"
+                              value={qrUpiStringEdits[id] ?? ''}
+                              onChange={(e) => setQrUpiStringEdits((m) => ({ ...m, [id]: e.target.value }))}
+                              placeholder="upi://pay?pa=yourid@ybl&pn=Name&cu=INR"
+                              title="Not shown in PhonePe UI — build from your UPI ID (My QR). See SETUP.md step 3."
                             />
                           </td>
                           <td className="px-3 py-3 min-w-[220px]">

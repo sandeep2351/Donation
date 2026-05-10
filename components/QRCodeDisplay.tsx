@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Copy, CheckCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
+import { resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
 
 interface QRCodeDisplayProps {
   qrCode: {
@@ -10,25 +11,45 @@ interface QRCodeDisplayProps {
     imageUrl?: string;
     cloudinaryUrl?: string;
   };
+  /** Full `upi://pay?...&am=...` link when amount is valid; omit if amount missing or no base UPI string */
+  payHref?: string | null;
+  /** Rupees for button label (e.g. 5000) */
+  payAmountRupees?: number;
+  /** When set on Android, tries to open this app directly via intent:// */
+  preferredUpiApp?: UpiAppTab | 'ANY';
+  onPayClick?: () => void;
   onQRScanned?: (codeNumber: number) => void;
+  /** Laptop / desktop: do not use upi:// link (opens wrong app, e.g. WhatsApp on Mac) */
+  blockDesktopPay?: boolean;
 }
 
-export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProps) {
-  const [copied, setCopied] = useState(false);
+export default function QRCodeDisplay({
+  qrCode,
+  payHref,
+  payAmountRupees,
+  preferredUpiApp = 'ANY',
+  onPayClick,
+  onQRScanned,
+  blockDesktopPay = false,
+}: QRCodeDisplayProps) {
+  const [mounted, setMounted] = useState(false);
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(`UPI Code ${qrCode.code}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const href = useMemo(() => {
+    if (!payHref || !mounted) return payHref ?? null;
+    return resolvePayButtonHref(payHref, preferredUpiApp);
+  }, [payHref, preferredUpiApp, mounted]);
 
   useEffect(() => {
     onQRScanned?.(qrCode.code);
   }, [qrCode.code, onQRScanned]);
+
+  const amountOk = typeof payAmountRupees === 'number' && payAmountRupees >= 100;
+  const canPay = Boolean(payHref && amountOk);
+  const showPayLink = canPay && href && !blockDesktopPay;
 
   return (
     <div className="flex w-full max-w-[min(100%,20rem)] flex-col items-center mx-auto">
@@ -50,25 +71,37 @@ export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProp
         )}
       </div>
 
-      <p className="text-center text-sm text-muted-foreground mb-4">Scan to donate quickly and securely</p>
+      <p className="text-center text-sm text-muted-foreground mb-4 text-pretty">
+        Scan to pay, or use Pay below to open your UPI app with this amount.
+      </p>
 
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="flex items-center justify-center gap-2 min-h-11 px-4 py-2.5 bg-secondary border border-border rounded-lg hover:bg-secondary/80 transition-colors text-foreground text-sm font-medium w-full max-w-[min(100%,20rem)] touch-manipulation"
-      >
-        {copied ? (
-          <>
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Code copied!</span>
-          </>
-        ) : (
-          <>
-            <Copy className="w-4 h-4" />
-            <span>Copy UPI Code {qrCode.code}</span>
-          </>
-        )}
-      </button>
+      {blockDesktopPay && canPay ? (
+        <div className="w-full max-w-[min(100%,20rem)] space-y-2 rounded-xl border border-border bg-muted/50 px-3 py-3 text-center">
+          <p className="text-sm font-medium text-foreground">Pay works on your phone</p>
+          <p className="text-xs text-muted-foreground text-pretty leading-relaxed">
+            Laptop browsers don&apos;t run UPI. Chrome on Mac may even open the wrong app (e.g. WhatsApp). Open this
+            page on <strong className="text-foreground">Android or iPhone</strong> and tap Pay, or scan the QR with
+            PhonePe / any UPI app on your phone.
+          </p>
+        </div>
+      ) : showPayLink ? (
+        <a
+          href={href}
+          onClick={() => onPayClick?.()}
+          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-95 transition-opacity text-sm font-semibold w-full max-w-[min(100%,20rem)] touch-manipulation shadow-sm"
+        >
+          <ExternalLink className="w-4 h-4 shrink-0" aria-hidden />
+          Pay ₹{payAmountRupees!.toLocaleString('en-IN')}
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground text-sm font-medium w-full max-w-[min(100%,20rem)] cursor-not-allowed"
+        >
+          Pay (enter ₹100+ and set UPI link in admin)
+        </button>
+      )}
     </div>
   );
 }
