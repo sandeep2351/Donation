@@ -9,6 +9,7 @@ interface QRCodeDisplayProps {
     displayName: string;
     provider: string;
     imageUrl?: string;
+    cloudinaryUrl?: string;
   };
   onQRScanned?: (codeNumber: number) => void;
 }
@@ -41,12 +42,13 @@ export default function QRCodeDisplay({ qrCode, onQRScanned }: QRCodeDisplayProp
   return (
     <div className="flex flex-col items-center">
       <div className={`bg-gradient-to-br ${bgColor} rounded-xl p-8 mb-4 shadow-lg`}>
-        {qrCode.imageUrl ? (
+        {qrCode.cloudinaryUrl || qrCode.imageUrl ? (
           <div className="w-64 h-64 bg-white rounded-lg p-3 flex items-center justify-center">
             <img 
-              src={qrCode.imageUrl} 
+              src={qrCode.cloudinaryUrl || qrCode.imageUrl} 
               alt={`${qrCode.displayName} QR Code`}
               className="w-full h-full object-contain"
+              loading="lazy"
             />
           </div>
         ) : (

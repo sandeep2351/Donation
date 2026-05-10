@@ -219,6 +219,41 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+
+      {/* Admin Access Section */}
+      <section className="bg-gray-900 text-gray-100 py-12 md:py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gray-800 rounded-lg p-8 border border-gray-700">
+            <h3 className="text-2xl font-bold text-white mb-6">Admin Dashboard Access</h3>
+            <p className="text-gray-300 mb-6">
+              To access the admin dashboard for managing donations, medical records, and campaign updates:
+            </p>
+            
+            <div className="bg-gray-700 rounded-lg p-6 mb-6 font-mono text-sm">
+              <p className="text-gray-200 mb-3">
+                <span className="text-emerald-400">Login URL:</span> <span className="text-gray-100">/admin/login</span>
+              </p>
+              <p className="text-gray-200 mb-3">
+                <span className="text-emerald-400">Default Username:</span> <span className="text-gray-100">admin</span>
+              </p>
+              <p className="text-gray-200">
+                <span className="text-emerald-400">Default Password:</span> <span className="text-gray-100">admin123</span>
+              </p>
+            </div>
+
+            <p className="text-gray-400 text-sm italic">
+              ⚠️ Change these credentials immediately after your first login in the settings page for security.
+            </p>
+
+            <Link
+              href="/admin/login"
+              className="inline-block mt-6 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold"
+            >
+              Go to Admin Login
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

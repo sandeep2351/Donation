@@ -10,8 +10,6 @@ export default function DonatePage() {
   const [donorName, setDonorName] = useState('');
   const [donorEmail, setDonorEmail] = useState('');
   const [donorPhone, setDonorPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'MANUAL'>('UPI');
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,9 +17,27 @@ export default function DonatePage() {
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
   const qrCodes = [
-    { code: 1, displayName: 'Google Pay', provider: 'GOOGLE_PAY', imageUrl: '/qr-1.png' },
-    { code: 2, displayName: 'PhonePe', provider: 'PHONEPE', imageUrl: '/qr-2.png' },
-    { code: 3, displayName: 'Paytm', provider: 'PAYTM', imageUrl: '/qr-3.png' },
+    { 
+      code: 1, 
+      displayName: 'Google Pay', 
+      provider: 'GOOGLE_PAY', 
+      imageUrl: '/qr-1.png',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/google-pay-qr.png'
+    },
+    { 
+      code: 2, 
+      displayName: 'PhonePe', 
+      provider: 'PHONEPE', 
+      imageUrl: '/qr-2.png',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/phonepe-qr.png'
+    },
+    { 
+      code: 3, 
+      displayName: 'Paytm', 
+      provider: 'PAYTM', 
+      imageUrl: '/qr-3.png',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/qr-codes/paytm-qr.png'
+    },
   ];
 
   const [selectedQRIndex, setSelectedQRIndex] = useState(0);
@@ -39,7 +55,7 @@ export default function DonatePage() {
       return;
     }
 
-    if (!isAnonymous && !donorName.trim()) {
+    if (!donorName.trim()) {
       setError('Please enter your name');
       setLoading(false);
       return;
@@ -50,13 +66,13 @@ export default function DonatePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          donorName: isAnonymous ? 'Anonymous Donor' : donorName,
-          donorEmail: isAnonymous ? undefined : donorEmail,
-          donorPhone: isAnonymous ? undefined : donorPhone,
+          donorName: donorName,
+          donorEmail: donorEmail,
+          donorPhone: donorPhone,
           amount: finalAmount,
-          paymentMethod,
-          upiCode: paymentMethod === 'UPI' ? qrCodes[selectedQRIndex].code : undefined,
-          isAnonymous,
+          paymentMethod: 'UPI',
+          upiCode: qrCodes[selectedQRIndex].code,
+          isAnonymous: false,
         }),
       });
 
@@ -173,52 +189,8 @@ export default function DonatePage() {
                 </div>
               )}
 
-              {/* Payment Method */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Payment Method
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="UPI"
-                      checked={paymentMethod === 'UPI'}
-                      onChange={(e) => setPaymentMethod(e.target.value as 'UPI' | 'MANUAL')}
-                      className="w-4 h-4 text-emerald-600"
-                    />
-                    <span className="ml-3 font-medium text-gray-900">UPI Transfer</span>
-                  </label>
-                  <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="MANUAL"
-                      checked={paymentMethod === 'MANUAL'}
-                      onChange={(e) => setPaymentMethod(e.target.value as 'UPI' | 'MANUAL')}
-                      className="w-4 h-4 text-emerald-600"
-                    />
-                    <span className="ml-3 font-medium text-gray-900">Manual Entry</span>
-                  </label>
-                </div>
-              </div>
-
               {/* Donor Information */}
-              <div className="mb-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAnonymous}
-                    onChange={(e) => setIsAnonymous(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 rounded"
-                  />
-                  <span className="text-sm font-medium text-gray-700">Donate Anonymously</span>
-                </label>
-              </div>
-
-              {!isAnonymous && (
-                <div className="mb-6 space-y-3">
+              <div className="mb-6 space-y-3">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                       Full Name *
@@ -258,8 +230,7 @@ export default function DonatePage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
                     />
                   </div>
-                </div>
-              )}
+              </div>
 
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
@@ -279,8 +250,7 @@ export default function DonatePage() {
           </div>
 
           {/* QR Code Display */}
-          {paymentMethod === 'UPI' && (
-            <div className="lg:col-span-2">
+          <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-md p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Scan to Donate</h2>
                 
@@ -320,50 +290,7 @@ export default function DonatePage() {
                   </ol>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Manual Payment Method */}
-          {paymentMethod === 'MANUAL' && (
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Manual Donation</h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Bank Transfer Details</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
-                      <p><strong>Account Holder:</strong> Family Name</p>
-                      <p><strong>Account Number:</strong> XXXX XXXX XXXX 1234</p>
-                      <p><strong>IFSC Code:</strong> SBIN0001234</p>
-                      <p><strong>Bank:</strong> State Bank of India</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">After Donation</h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Please include your donation details below and click "Confirm Donation" so we can verify your contribution.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label htmlFor="transactionId" className="block text-sm font-medium text-gray-700 mb-1">
-                        Transaction ID / Reference
-                      </label>
-                      <input
-                        id="transactionId"
-                        type="text"
-                        placeholder="Enter transaction reference"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Transparency Section */}
@@ -385,7 +312,7 @@ export default function DonatePage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Public Records</h3>
               <p className="text-gray-700 text-sm">
-                All donations (except anonymous) are publicly listed to maintain trust and accountability.
+                All donations are publicly listed to maintain trust and accountability.
               </p>
             </div>
           </div>

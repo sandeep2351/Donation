@@ -54,52 +54,6 @@ export default function UpdatesPage() {
           ))}
         </div>
 
-        {/* Timeline visualization */}
-        <div className="mt-16 bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-            Our Journey So Far
-          </h2>
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-emerald-400 to-blue-400" />
-
-            {/* Timeline events */}
-            <div className="space-y-12">
-              {[
-                { date: 'Week 1', event: 'Campaign Launch', status: 'completed' },
-                { date: 'Week 2-3', event: 'Initial Tests & Consultations', status: 'completed' },
-                { date: 'Week 4', event: 'Fundraising Progress: 40%', status: 'completed' },
-                { date: 'Week 6-8', event: 'Hospital Pre-Admission', status: 'in-progress' },
-                { date: 'Week 10-12', event: 'Surgery Scheduled', status: 'upcoming' },
-                { date: 'Post-Op', event: 'Recovery & Care', status: 'upcoming' },
-              ].map((item, index) => (
-                <div key={index} className="relative">
-                  <div className="flex items-center">
-                    <div className="w-1/2 text-right pr-8">
-                      <p className="font-semibold text-gray-900">{item.event}</p>
-                      <p className="text-sm text-gray-600">{item.date}</p>
-                    </div>
-                    <div
-                      className={`w-6 h-6 rounded-full border-4 flex items-center justify-center relative z-10 ${
-                        item.status === 'completed'
-                          ? 'bg-emerald-600 border-emerald-200'
-                          : item.status === 'in-progress'
-                          ? 'bg-blue-600 border-blue-200'
-                          : 'bg-gray-200 border-gray-300'
-                      }`}
-                    >
-                      {item.status === 'completed' && (
-                        <span className="text-white text-sm">✓</span>
-                      )}
-                    </div>
-                    <div className="w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* Contact CTA */}
         <div className="mt-16 bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-lg shadow-md p-8 text-white text-center">
           <h2 className="text-2xl font-bold mb-4">Have Questions?</h2>

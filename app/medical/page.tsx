@@ -1,5 +1,5 @@
 import MedicalReportCard from '@/components/MedicalReportCard';
-import { FileText, Lock } from 'lucide-react';
+import { FileText, Lock, ExternalLink } from 'lucide-react';
 
 export default function MedicalPage() {
   const reports = [
@@ -12,6 +12,7 @@ export default function MedicalPage() {
       doctorName: 'Dr. Rajesh Sharma',
       hospital: 'Apollo Hospitals',
       documentFileName: 'PFT_Report_2024.pdf',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/medical-reports/PFT_Report_2024.pdf',
     },
     {
       id: 2,
@@ -22,6 +23,7 @@ export default function MedicalPage() {
       doctorName: 'Dr. Priya Verma',
       hospital: 'Apollo Hospitals',
       documentFileName: 'CT_Scan_Report.pdf',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/medical-reports/CT_Scan_Report.pdf',
     },
     {
       id: 3,
@@ -32,6 +34,7 @@ export default function MedicalPage() {
       doctorName: 'Dr. Vikram Singh',
       hospital: 'Apollo Hospitals',
       documentFileName: 'Surgical_Evaluation.pdf',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/medical-reports/Surgical_Evaluation.pdf',
     },
     {
       id: 4,
@@ -42,6 +45,7 @@ export default function MedicalPage() {
       doctorName: 'Dr. Anjali Patel',
       hospital: 'Apollo Hospitals',
       documentFileName: 'Bloodwork_Panel.pdf',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/medical-reports/Bloodwork_Panel.pdf',
     },
     {
       id: 5,
@@ -52,6 +56,7 @@ export default function MedicalPage() {
       doctorName: 'Dr. Rohit Kumar',
       hospital: 'Apollo Hospitals',
       documentFileName: 'Cardiology_Report.pdf',
+      cloudinaryUrl: 'https://res.cloudinary.com/[YOUR_CLOUD_NAME]/image/upload/v1[timestamp]/medical-reports/Cardiology_Report.pdf',
     },
   ];
 
@@ -102,16 +107,38 @@ export default function MedicalPage() {
         {/* Reports Grid */}
         <div className="grid grid-cols-1 gap-6 mb-12">
           {reports.map((report) => (
-            <MedicalReportCard
-              key={report.id}
-              title={report.title}
-              category={report.category}
-              description={report.description}
-              date={report.date}
-              doctorName={report.doctorName}
-              hospital={report.hospital}
-              documentFileName={report.documentFileName}
-            />
+            <div key={report.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <MedicalReportCard
+                      title={report.title}
+                      category={report.category}
+                      description={report.description}
+                      date={report.date}
+                      doctorName={report.doctorName}
+                      hospital={report.hospital}
+                      documentFileName={report.documentFileName}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  <FileText className="w-4 h-4 inline mr-2" />
+                  {report.documentFileName}
+                </p>
+                <a
+                  href={report.cloudinaryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Document
+                </a>
+              </div>
+            </div>
           ))}
         </div>
 
