@@ -26,7 +26,7 @@ async function loadBrandingUncached(): Promise<{
     const headline =
       typeof s?.campaignTitle === 'string' && s.campaignTitle.trim()
         ? s.campaignTitle.trim()
-        : "Help Save Dad's Life";
+        : "Help Save One's Life";
     const navTitle =
       typeof s?.siteName === 'string' && s.siteName.trim() ? s.siteName.trim() : DEFAULT_SITE_NAME;
 
@@ -39,7 +39,7 @@ async function loadBrandingUncached(): Promise<{
   } catch {
     return {
       navTitle: DEFAULT_SITE_NAME,
-      headline: "Help Save Dad's Life",
+      headline: "Help Save One's Life",
       tagline: NAV_SUBTITLE,
       description: '',
     };
