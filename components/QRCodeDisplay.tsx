@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
 
@@ -15,7 +15,7 @@ interface QRCodeDisplayProps {
   payHref?: string | null;
   /** Rupees for button label (e.g. 5000) */
   payAmountRupees?: number;
-  /** When set on Android, tries to open this app directly via intent:// */
+  /** Legacy: tabs map to preferred app; href stays plain `upi://` for reliability on Android */
   preferredUpiApp?: UpiAppTab | 'ANY';
   onPayClick?: () => void;
   onQRScanned?: (codeNumber: number) => void;
@@ -32,16 +32,10 @@ export default function QRCodeDisplay({
   onQRScanned,
   blockDesktopPay = false,
 }: QRCodeDisplayProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const href = useMemo(() => {
-    if (!payHref || !mounted) return payHref ?? null;
-    return resolvePayButtonHref(payHref, preferredUpiApp);
-  }, [payHref, preferredUpiApp, mounted]);
+  const href = useMemo(
+    () => (payHref ? resolvePayButtonHref(payHref, preferredUpiApp) : ''),
+    [payHref, preferredUpiApp]
+  );
 
   useEffect(() => {
     onQRScanned?.(qrCode.code);
@@ -49,7 +43,22 @@ export default function QRCodeDisplay({
 
   const amountOk = typeof payAmountRupees === 'number' && payAmountRupees >= 100;
   const canPay = Boolean(payHref && amountOk);
-  const showPayLink = canPay && href && !blockDesktopPay;
+  const showPayLink = canPay && Boolean(href) && !blockDesktopPay;
+
+  /**
+   * Start UPI navigation first. Calling `onPayClick` (parent setState) before `location.assign`
+   * re-renders the page and can cancel the custom-scheme handoff — user only sees "finish payment"
+   * with no app opening. Defer the follow-up UI until after the browser has tried to leave.
+   */
+  const activatePay = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      if (!href) return;
+      e.preventDefault();
+      window.location.assign(href);
+      window.setTimeout(() => onPayClick?.(), 600);
+    },
+    [href, onPayClick]
+  );
 
   return (
     <div className="flex w-full max-w-[min(100%,20rem)] flex-col items-center mx-auto">
@@ -59,7 +68,8 @@ export default function QRCodeDisplay({
             {showPayLink && href ? (
               <a
                 href={href}
-                onClick={() => onPayClick?.()}
+                target="_top"
+                onClick={activatePay}
                 className="block h-full w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
                 aria-label={
                   amountOk && payAmountRupees
@@ -108,7 +118,8 @@ export default function QRCodeDisplay({
       ) : showPayLink ? (
         <a
           href={href}
-          onClick={() => onPayClick?.()}
+          target="_top"
+          onClick={activatePay}
           className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-95 transition-opacity text-sm font-semibold w-full max-w-[min(100%,20rem)] touch-manipulation shadow-sm"
         >
           <ExternalLink className="w-4 h-4 shrink-0" aria-hidden />

@@ -1,7 +1,7 @@
 import { isUnconfiguredPlaceholderUpi } from '@/lib/qr-defaults';
 
-/** Loose VPA check: local-part@psp-handle */
-const UPI_ID_RE = /^[\w.\-]{2,80}@[\w.\-]{2,80}$/i;
+/** Loose VPA check: local-part@psp-handle (dots/plus common in bank VPAs) */
+const UPI_ID_RE = /^[\w.+\-]{2,99}@[\w.\-]{2,99}$/i;
 
 /**
  * Build a minimal `upi://pay?pa=&pn=&cu=INR` base (no amount) from VPA + payee label.
@@ -68,20 +68,14 @@ export const UPI_ANDROID_PACKAGES = {
 export type UpiAppTab = keyof typeof UPI_ANDROID_PACKAGES;
 
 /**
- * On Android Chrome, prefer `ACTION_VIEW` with the full `upi://pay?…` URI as `data`.
- * The older `intent://pay?…#Intent;scheme=upi;package=…` form often fails for Google Pay
- * and can fall back to the Play Store even when the app is installed.
+ * Returns the href used for Pay / QR tap. We keep plain `upi://pay?…` everywhere: packaged
+ * `intent:#Intent;…;package=…` links often do nothing in Chrome, Samsung Internet, and in-app
+ * browsers. The OS still shows PhonePe / GPay / Paytm in the chooser for the same link.
  */
 export function resolvePayButtonHref(
   upiPayHref: string,
-  preferredApp: UpiAppTab | 'ANY'
+  _preferredApp: UpiAppTab | 'ANY'
 ): string {
-  if (typeof navigator === 'undefined' || !/Android/i.test(navigator.userAgent)) {
-    return upiPayHref;
-  }
-  if (preferredApp === 'ANY') return upiPayHref;
-  if (!/^upi:\/\/pay\?/i.test(upiPayHref)) return upiPayHref;
-  const pkg = UPI_ANDROID_PACKAGES[preferredApp];
-  const encoded = encodeURIComponent(upiPayHref);
-  return `intent:#Intent;action=android.intent.action.VIEW;data=${encoded};package=${pkg};end`;
+  void _preferredApp;
+  return upiPayHref;
 }

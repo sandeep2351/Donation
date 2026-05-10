@@ -82,14 +82,23 @@ export default function DonatePage() {
 
   const poolLen = qrPool.length;
 
+  const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
+  const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+
   const poolForTab = useMemo(() => {
     const tab = selectedUpiApp;
     const tagged = qrPool.filter((q) => {
       const t = q.upiTargetApp || 'ANY';
       return t === 'ANY' || t === tab;
     });
-    return tagged.length > 0 ? tagged : qrPool;
-  }, [qrPool, selectedUpiApp]);
+    const base = tagged.length > 0 ? tagged : qrPool;
+    /** Only rotate among slots that can actually build a pay link once amount is known (e.g. only #4 has UPI ID). */
+    if (finalAmount >= 100) {
+      const payable = base.filter((q) => resolveQrBaseUpiForPayment(q) !== null);
+      if (payable.length > 0) return payable;
+    }
+    return base;
+  }, [qrPool, selectedUpiApp, finalAmount]);
 
   const poolForTabLen = poolForTab.length;
 
@@ -118,9 +127,6 @@ export default function DonatePage() {
     }, ROTATE_POOL_MS);
     return () => clearInterval(t);
   }, [poolLen]);
-
-  const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
-  const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
 
   const slotIndexForApp = (app: UpiAppId) =>
     poolForTabLen === 0 ? 0 : (rotationTick + APP_SLOT_OFFSET[app]) % poolForTabLen;
@@ -465,10 +471,9 @@ export default function DonatePage() {
                     )}
                     {upiPayHref && finalAmount >= 100 && !desktopNoUpi && (
                       <p className="text-xs text-center text-muted-foreground text-pretty">
-                        On Android, Pay tries to open{' '}
-                        <strong className="text-foreground">{UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label}</strong>
-                        ; you can still pick another app if shown. On iPhone you may get a list of UPI apps. Confirm the
-                        amount before paying.
+                        Your phone may show an <strong className="text-foreground">app chooser</strong> — pick{' '}
+                        {UPI_APP_CHOICES.find((a) => a.id === selectedUpiApp)?.label ?? 'your UPI app'} or any UPI app.
+                        Confirm the amount before paying.
                       </p>
                     )}
                     {payLinkOpened && upiPayHref && !desktopNoUpi && (

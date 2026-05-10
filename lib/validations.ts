@@ -113,7 +113,7 @@ const upiIdField = z
       .string()
       .min(3)
       .max(100)
-      .regex(/^[\w.\-]+@[\w.\-]+$/i, 'Use UPI ID only, e.g. name@ybl'),
+      .regex(/^[\w.+\-]+@[\w.\-]+$/i, 'Use UPI ID only, e.g. name@ybl'),
   ])
   .optional();
 
