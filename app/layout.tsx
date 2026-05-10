@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#10b981',
+  themeColor: '#6b9d7d',
   userScalable: true,
 }
 
@@ -47,8 +47,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-white">
-      <body className="font-sans antialiased bg-white flex flex-col min-h-screen">
+    <html lang="en" className="bg-background">
+      <body className="font-sans antialiased bg-background flex flex-col min-h-screen">
         <Header />
         <main className="flex-1">
           {children}

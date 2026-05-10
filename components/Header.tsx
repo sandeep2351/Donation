@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Heart } from 'lucide-react';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,32 +11,36 @@ export default function Header() {
     { href: '/', label: 'Home' },
     { href: '/donate', label: 'Donate' },
     { href: '/updates', label: 'Updates' },
-    { href: '/medical', label: 'Medical Reports' },
+    { href: '/medical', label: 'Medical' },
     { href: '/contact', label: 'Contact' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">✓</span>
+        <div className="flex justify-between items-center h-20">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center transform group-hover:scale-105 transition-transform">
+              <Heart className="w-6 h-6 text-primary-foreground fill-primary-foreground" />
             </div>
-            <span className="font-semibold text-gray-900 hidden sm:inline">
-              Help Dad&apos;s Surgery
-            </span>
+            <div className="hidden sm:block">
+              <p className="font-serif text-lg font-semibold text-foreground leading-tight">
+                Help Dad&apos;s Surgery
+              </p>
+              <p className="text-xs text-muted-foreground">A family&apos;s hope</p>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors relative group"
               >
                 {link.label}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
               </Link>
             ))}
           </nav>
@@ -45,47 +49,47 @@ export default function Header() {
           <div className="hidden md:block">
             <Link
               href="/donate"
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-full hover:shadow-lg transform hover:scale-105 transition-all font-medium text-sm"
             >
-              Donate Now
+              Donate
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+            className="md:hidden p-2 text-foreground hover:bg-secondary rounded-lg transition-colors"
           >
             {mobileMenuOpen ? (
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             ) : (
-              <Menu className="w-5 h-5" />
+              <Menu className="w-6 h-6" />
             )}
           </button>
         </div>
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-4 pt-2 border-t border-gray-200">
-            <nav className="flex flex-col gap-1">
+          <div className="md:hidden pb-6 pt-4 border-t border-border space-y-4">
+            <nav className="flex flex-col gap-3">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                  className="px-4 py-2.5 text-sm font-medium text-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/donate"
-                className="px-3 py-2 mt-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Donate Now
-              </Link>
             </nav>
+            <Link
+              href="/donate"
+              className="block px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:shadow-lg transition-all font-medium text-sm text-center"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Donate Now
+            </Link>
           </div>
         )}
       </div>
