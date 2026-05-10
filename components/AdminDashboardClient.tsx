@@ -658,7 +658,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               <span>File</span>
                               <input
                                 type="file"
-                                accept="image/png,image/jpeg,image/webp"
+                                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
                                 className="hidden"
                                 disabled={qrUploadingId === id}
                                 onChange={(e) => handleQrFile(id, e)}
@@ -693,8 +693,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           <div>
             <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Medical documents</h2>
             <p className="text-sm text-muted-foreground text-pretty max-w-2xl">
-              Upload PDFs or images while logged in; files go to Cloudinary and we save the secure URL, file name, MIME
-              type, and public id in MongoDB for the public medical page.
+              Upload PDF, Word (DOC/DOCX), or images (PNG, JPG, JPEG, WebP) while logged in; files go to Cloudinary and
+              we save the secure URL, file name, MIME type, and public id in MongoDB for the public medical page.
             </p>
           </div>
 
@@ -708,10 +708,12 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               <label className="block text-sm font-medium text-foreground mb-2">1. Upload file (optional)</label>
               <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary text-sm">
                 {medicalUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                <span>{medicalUploading ? 'Uploading…' : 'PDF or image from computer'}</span>
+                <span>
+                  {medicalUploading ? 'Uploading…' : 'PDF, Word, or image from computer'}
+                </span>
                 <input
                   type="file"
-                  accept="application/pdf,image/*"
+                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/*,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
                   className="hidden"
                   disabled={medicalUploading}
                   onChange={handleMedicalFile}
