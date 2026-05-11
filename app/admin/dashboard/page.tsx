@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import AdminDashboardClient from '@/components/AdminDashboardClient';
 
 export default function AdminDashboardPage() {
@@ -39,14 +40,22 @@ export default function AdminDashboardPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/auth', {
+      const r = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout' }),
       });
-      router.push('/admin/login');
+      if (!r.ok) throw new Error('logout failed');
+      toast({ title: 'Signed out', description: 'Taking you to the home page.', duration: 4000 });
+      router.push('/');
     } catch (err) {
       console.error('Logout error:', err);
+      toast({
+        title: 'Sign out failed',
+        description: 'Try again or close the browser.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 

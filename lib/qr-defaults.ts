@@ -7,6 +7,21 @@ export const UPI_TARGET_ANY = 'ANY' as const;
 export const UPI_TARGET_APPS = ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', UPI_TARGET_ANY] as const;
 export type UpiQrTargetApp = (typeof UPI_TARGET_APPS)[number];
 
+/** Human label for `upiTargetApp` (donate tabs + admin “UPI app”). */
+export function upiSlotAppLabel(t: UpiQrTargetApp | string | undefined | null): string {
+  if (!t || t === UPI_TARGET_ANY) return 'Any UPI app';
+  switch (t) {
+    case 'GOOGLE_PAY':
+      return 'Google Pay';
+    case 'PHONEPE':
+      return 'PhonePe';
+    case 'PAYTM':
+      return 'Paytm';
+    default:
+      return '';
+  }
+}
+
 export function isUnconfiguredPlaceholderUpi(s: string | undefined | null): boolean {
   const t = (s || '').trim().toLowerCase();
   if (!t || !/^upi:\/\//i.test(t)) return true;

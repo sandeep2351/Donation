@@ -120,6 +120,7 @@ const upiIdField = z
 export const qrCodeUpdateSchema = z.object({
   imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
   upiTargetApp: z.enum(['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY']).optional(),
+  bankName: z.string().max(120).optional(),
   upiId: upiIdField,
   upiString: z
     .union([

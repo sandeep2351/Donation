@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from '@/hooks/use-toast';
 import {
   Upload,
   Check,
@@ -11,6 +12,7 @@ import {
   Loader2,
   QrCode,
   Plus,
+  Pencil,
 } from 'lucide-react';
 import type { UpiQrTargetApp } from '@/lib/qr-defaults';
 
@@ -36,6 +38,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [qrLabelEdits, setQrLabelEdits] = useState<Record<string, string>>({});
   const [qrActiveEdits, setQrActiveEdits] = useState<Record<string, boolean>>({});
   const [qrTargetAppEdits, setQrTargetAppEdits] = useState<Record<string, UpiQrTargetApp>>({});
+  const [bankNameEdits, setBankNameEdits] = useState<Record<string, string>>({});
+  const [qrEditModalId, setQrEditModalId] = useState<string | null>(null);
   const [qrAddBusy, setQrAddBusy] = useState(false);
   const [donationsBulkDeleting, setDonationsBulkDeleting] = useState(false);
 
@@ -103,6 +107,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       const labels: Record<string, string> = {};
       const active: Record<string, boolean> = {};
       const targets: Record<string, UpiQrTargetApp> = {};
+      const banks: Record<string, string> = {};
       for (const q of list) {
         const id = String(q._id);
         edits[id] = (q.imageUrl as string) || '';
@@ -112,6 +117,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
         active[id] = (q as { isActive?: boolean }).isActive !== false;
         const ta = (q as { upiTargetApp?: UpiQrTargetApp }).upiTargetApp;
         targets[id] = ta && ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY'].includes(ta) ? ta : 'ANY';
+        banks[id] = String((q as { bankName?: string }).bankName || '');
       }
       setQrEdits(edits);
       setQrUpiStringEdits(upiEdits);
@@ -119,6 +125,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       setQrLabelEdits(labels);
       setQrActiveEdits(active);
       setQrTargetAppEdits(targets);
+      setBankNameEdits(banks);
     } catch {
       setQrList([]);
     }
@@ -157,14 +164,25 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
   const handleApproveDonation = async (donationId: string) => {
     try {
-      await fetch(`/api/donations/${donationId}`, {
+      const r = await fetch(`/api/donations/${donationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'CONFIRMED' }),
       });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(typeof j.error === 'string' ? j.error : 'Update failed');
+      }
+      toast({ title: 'Donation approved', description: 'Status set to confirmed.', duration: 5000 });
       fetchDonations();
     } catch (err) {
       console.error('Failed to approve donation:', err);
+      toast({
+        title: 'Could not approve',
+        description: err instanceof Error ? err.message : 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -173,10 +191,16 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     try {
       const r = await fetch(`/api/donations/${donationId}`, { method: 'DELETE' });
       if (!r.ok) throw new Error('delete failed');
+      toast({ title: 'Donation removed', description: 'The record was deleted.', duration: 5000 });
       fetchDonations();
     } catch (err) {
       console.error('Failed to delete donation:', err);
-      alert('Could not delete. Stay logged in and try again.');
+      toast({
+        title: 'Could not delete',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -194,10 +218,16 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     try {
       const r = await fetch('/api/donations', { method: 'DELETE' });
       if (!r.ok) throw new Error('bulk delete failed');
+      toast({ title: 'All donations cleared', description: 'The donations table is empty.', duration: 5000 });
       await fetchDonations();
     } catch (err) {
       console.error(err);
-      alert('Could not clear donations. Stay logged in and try again.');
+      toast({
+        title: 'Could not clear donations',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     } finally {
       setDonationsBulkDeleting(false);
     }
@@ -205,15 +235,22 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
   const saveDonationNote = async (donationId: string) => {
     try {
-      await fetch(`/api/donations/${donationId}`, {
+      const r = await fetch(`/api/donations/${donationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminNotes: donationNotes[donationId] ?? '' }),
       });
+      if (!r.ok) throw new Error('save failed');
+      toast({ title: 'Note saved', duration: 4000 });
       fetchDonations();
     } catch (e) {
       console.error(e);
-      alert('Could not save note');
+      toast({
+        title: 'Could not save note',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -228,9 +265,15 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       a.download = `donations-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+      toast({ title: 'Export started', description: 'Your CSV download should begin shortly.', duration: 5000 });
     } catch (e) {
       console.error(e);
-      alert('Export failed. Stay logged in and try again.');
+      toast({
+        title: 'Export failed',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -257,8 +300,11 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
         fileSizeBytes: data.bytes ?? file.size,
       }));
       setMedicalMsg('File uploaded to Cloudinary. Add title and description, then publish.');
+      toast({ title: 'File uploaded', description: 'Add details and publish when ready.', duration: 5000 });
     } catch (err: unknown) {
-      setMedicalMsg(err instanceof Error ? err.message : 'Upload failed');
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      setMedicalMsg(msg);
+      toast({ title: 'Upload failed', description: msg, variant: 'destructive', duration: 6000 });
     } finally {
       setMedicalUploading(false);
     }
@@ -279,9 +325,15 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       if (!r.ok) throw new Error(data.error || 'Upload failed');
       setQrEdits((m) => ({ ...m, [qrId]: data.url }));
       await fetchQrs();
+      toast({ title: 'QR image uploaded', description: 'Image URL was updated for this slot.', duration: 5000 });
     } catch (err) {
       console.error(err);
-      alert('QR upload failed. Check Cloudinary preset allows image uploads.');
+      toast({
+        title: 'QR upload failed',
+        description: 'Check Cloudinary preset allows image uploads.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     } finally {
       setQrUploadingId(null);
     }
@@ -292,23 +344,35 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     try {
       const r = await fetch(`/api/medical/${id}`, { method: 'DELETE' });
       if (!r.ok) throw new Error('delete failed');
+      toast({ title: 'Report deleted', description: 'Removed from the database.', duration: 5000 });
       fetchMedicalList();
     } catch (e) {
       console.error(e);
-      alert('Delete failed');
+      toast({ title: 'Delete failed', description: 'Stay logged in and try again.', variant: 'destructive', duration: 6000 });
     }
   };
 
   const toggleMedicalPublic = async (id: string, isPublic: boolean) => {
     try {
-      await fetch(`/api/medical/${id}`, {
+      const r = await fetch(`/api/medical/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isPublic: !isPublic }),
       });
+      if (!r.ok) throw new Error('update failed');
+      toast({
+        title: !isPublic ? 'Report is now public' : 'Report hidden',
+        description: 'Visibility was saved.',
+        duration: 4000,
+      });
       fetchMedicalList();
     } catch (e) {
       console.error(e);
+      toast({
+        title: 'Could not update visibility',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -335,15 +399,21 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       });
       if (!r.ok) throw new Error('Save failed');
       await fetchSettings();
+      toast({ title: 'Settings saved', description: 'Campaign details were updated.', duration: 5000 });
     } catch (err) {
       console.error(err);
-      alert('Could not save settings. Are you still logged in?');
+      toast({
+        title: 'Could not save settings',
+        description: 'Are you still logged in?',
+        variant: 'destructive',
+        duration: 6000,
+      });
     } finally {
       setSettingsSaving(false);
     }
   };
 
-  const saveQr = async (id: string) => {
+  const saveQr = async (id: string): Promise<boolean> => {
     try {
       const row = qrList.find((q) => String(q._id) === id);
       const code = row ? Number(row.code) : 0;
@@ -360,15 +430,23 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           upiId,
           isActive: qrActiveEdits[id] !== false,
           upiTargetApp: qrTargetAppEdits[id] ?? 'ANY',
+          bankName: (bankNameEdits[id] || '').trim(),
         }),
       });
       if (!r.ok) throw new Error('patch failed');
       await fetchQrs();
+      toast({ title: 'QR slot saved', description: 'Changes are live on the donate page.', duration: 5000 });
+      return true;
     } catch (e) {
       console.error(e);
-      alert(
-        'Could not save QR row. UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?'
-      );
+      toast({
+        title: 'Could not save QR slot',
+        description:
+          'UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?',
+        variant: 'destructive',
+        duration: 8000,
+      });
+      return false;
     }
   };
 
@@ -378,9 +456,15 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       const r = await fetch('/api/qr-codes', { method: 'POST' });
       if (!r.ok) throw new Error('create failed');
       await fetchQrs();
+      toast({ title: 'QR slot added', description: 'Configure UPI details and save.', duration: 5000 });
     } catch (e) {
       console.error(e);
-      alert('Could not add QR slot. Stay logged in and try again.');
+      toast({
+        title: 'Could not add slot',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     } finally {
       setQrAddBusy(false);
     }
@@ -392,9 +476,15 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       const r = await fetch(`/api/qr-codes/${id}`, { method: 'DELETE' });
       if (!r.ok) throw new Error('delete failed');
       await fetchQrs();
+      toast({ title: 'QR slot deleted', description: `Slot #${code} was removed.`, duration: 5000 });
     } catch (e) {
       console.error(e);
-      alert('Could not delete slot. Stay logged in and try again.');
+      toast({
+        title: 'Could not delete slot',
+        description: 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
     }
   };
 
@@ -438,13 +528,17 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setMedicalMsg(j.error || 'Failed');
+        const msg = j.error || 'Failed';
+        setMedicalMsg(msg);
+        toast({ title: 'Could not publish', description: String(msg), variant: 'destructive', duration: 7000 });
         return;
       }
+      toast({ title: 'Document published', description: 'Listed in admin; toggle public to show on /medical.', duration: 5000 });
       closeMedicalModal();
       fetchMedicalList();
     } catch {
       setMedicalMsg('Network error');
+      toast({ title: 'Network error', description: 'Could not reach the server.', variant: 'destructive', duration: 6000 });
     }
   };
 
@@ -695,7 +789,9 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                 <strong>UPI ID</strong> is the short address only (e.g. <code className="text-xs bg-secondary px-1 rounded">name@ybl</code>
                 ) — we build the pay link using <strong>Label</strong> as the payee name. Optional{' '}
                 <strong>UPI string</strong> overrides that when set (full <code className="text-xs bg-secondary px-1 rounded">upi://pay?pa=…</code>{' '}
-                from My QR). Set <strong>Pay tab</strong> per app or <strong>Any</strong>. Upload images or paste URLs.
+                from My QR). <strong>UPI app</strong> chooses whether this slot is for all Pay tabs (<strong>Any app</strong>)
+                or only Google Pay / PhonePe / Paytm. Add <strong>Bank name</strong> if you want it under the QR on the
+                donate page. Upload images or paste URLs. Use <strong>Edit</strong> for a full form.
               </p>
             </div>
             <button
@@ -711,11 +807,12 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
             <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
-              <table className="w-full text-sm min-w-[88rem]">
+              <table className="w-full text-sm min-w-[92rem]">
                 <thead>
                   <tr className="bg-secondary/80 border-b border-border">
                     <th className="px-3 py-3 text-left font-semibold text-foreground">#</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[9rem]">Pay tab</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[9rem]">UPI app</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[8rem]">Bank name</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Label</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[8.5rem]">UPI ID</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">UPI string</th>
@@ -748,13 +845,23 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                                   [id]: e.target.value as UpiQrTargetApp,
                                 }))
                               }
-                              aria-label="Which donate-page Pay tab uses this UPI string"
+                              aria-label="UPI app: which donate Pay tab uses this slot, or any app"
                             >
                               <option value="ANY">Any app</option>
                               <option value="GOOGLE_PAY">Google Pay</option>
                               <option value="PHONEPE">PhonePe</option>
                               <option value="PAYTM">Paytm</option>
                             </select>
+                          </td>
+                          <td className="px-3 py-3 min-w-[8rem] max-w-[12rem]">
+                            <input
+                              className="w-full px-2 py-1.5 border border-border rounded-md bg-background text-sm"
+                              value={bankNameEdits[id] ?? ''}
+                              onChange={(e) => setBankNameEdits((m) => ({ ...m, [id]: e.target.value }))}
+                              placeholder="e.g. HDFC"
+                              maxLength={120}
+                              autoComplete="organization"
+                            />
                           </td>
                           <td className="px-3 py-3 min-w-[140px]">
                             <input
@@ -825,6 +932,14 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                             <div className="flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
+                                onClick={() => setQrEditModalId(id)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 border border-border bg-background rounded-md text-xs font-medium hover:bg-secondary"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => saveQr(id)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:opacity-95"
                               >
@@ -851,6 +966,144 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               <p className="p-6 text-sm text-muted-foreground text-center">No slots yet. Click &quot;Add slot&quot;.</p>
             )}
           </div>
+
+          {qrEditModalId && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="qr-edit-modal-title"
+              onClick={() => setQrEditModalId(null)}
+            >
+              <div
+                className="bg-card border border-border rounded-xl shadow-lg w-full max-w-lg max-h-[min(90vh,100dvh-2rem)] overflow-y-auto p-4 sm:p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-start gap-4 mb-4">
+                  <h3 id="qr-edit-modal-title" className="text-lg font-semibold text-foreground">
+                    Edit QR slot #
+                    {qrList.find((q) => String(q._id) === qrEditModalId)?.code ?? ''}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setQrEditModalId(null)}
+                    className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">UPI app</label>
+                    <p className="text-xs text-muted-foreground mb-2 text-pretty">
+                      Any app = slot can appear under every Pay tab. Otherwise it only appears for that app&apos;s tab.
+                    </p>
+                    <select
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                      value={qrTargetAppEdits[qrEditModalId] ?? 'ANY'}
+                      onChange={(e) =>
+                        setQrTargetAppEdits((m) => ({
+                          ...m,
+                          [qrEditModalId]: e.target.value as UpiQrTargetApp,
+                        }))
+                      }
+                    >
+                      <option value="ANY">Any app</option>
+                      <option value="GOOGLE_PAY">Google Pay</option>
+                      <option value="PHONEPE">PhonePe</option>
+                      <option value="PAYTM">Paytm</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">Bank name</label>
+                    <input
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                      value={bankNameEdits[qrEditModalId] ?? ''}
+                      onChange={(e) =>
+                        setBankNameEdits((m) => ({ ...m, [qrEditModalId]: e.target.value }))
+                      }
+                      placeholder="e.g. State Bank of India"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">Label</label>
+                    <input
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                      value={qrLabelEdits[qrEditModalId] ?? ''}
+                      onChange={(e) =>
+                        setQrLabelEdits((m) => ({ ...m, [qrEditModalId]: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">UPI ID</label>
+                    <input
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background font-mono text-sm"
+                      value={qrUpiIdEdits[qrEditModalId] ?? ''}
+                      onChange={(e) =>
+                        setQrUpiIdEdits((m) => ({ ...m, [qrEditModalId]: e.target.value }))
+                      }
+                      placeholder="name@ybl"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">UPI string (optional)</label>
+                    <textarea
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background font-mono text-xs min-h-[72px]"
+                      value={qrUpiStringEdits[qrEditModalId] ?? ''}
+                      onChange={(e) =>
+                        setQrUpiStringEdits((m) => ({ ...m, [qrEditModalId]: e.target.value }))
+                      }
+                      placeholder="upi://pay?pa=…"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-foreground mb-1">Image URL</label>
+                    <input
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-xs"
+                      value={qrEdits[qrEditModalId] ?? ''}
+                      onChange={(e) => setQrEdits((m) => ({ ...m, [qrEditModalId]: e.target.value }))}
+                      placeholder="https://…"
+                    />
+                  </div>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={qrActiveEdits[qrEditModalId] !== false}
+                      onChange={(e) =>
+                        setQrActiveEdits((m) => ({ ...m, [qrEditModalId]: e.target.checked }))
+                      }
+                      className="rounded border-border"
+                    />
+                    <span>Show on site</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await saveQr(qrEditModalId);
+                        if (ok) setQrEditModalId(null);
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-95"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQrEditModalId(null)}
+                      className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

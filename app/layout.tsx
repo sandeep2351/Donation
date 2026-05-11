@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import { getCampaignBranding } from '@/lib/campaign-branding'
+import { AppToaster } from '@/components/AppToaster'
 import './globals.css'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -55,6 +56,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         {children}
+        <AppToaster />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

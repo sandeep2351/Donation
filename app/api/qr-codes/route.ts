@@ -34,6 +34,7 @@ export async function POST() {
       upiId: '',
       upiTargetApp: 'ANY',
       provider: 'POOL',
+      bankName: '',
       displayName: `QR ${nextCode}`,
       isActive: true,
     });

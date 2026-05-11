@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
+import { upiSlotAppLabel, type UpiQrTargetApp } from '@/lib/qr-defaults';
 
 interface QRCodeDisplayProps {
   qrCode: {
@@ -10,6 +11,9 @@ interface QRCodeDisplayProps {
     displayName?: string;
     imageUrl?: string;
     cloudinaryUrl?: string;
+    /** Matches admin “UPI app” (ANY or a specific app). */
+    upiTargetApp?: UpiQrTargetApp;
+    bankName?: string;
   };
   /** Full `upi://pay?...&am=...` link when amount is valid; omit if amount missing or no base UPI string */
   payHref?: string | null;
@@ -32,6 +36,9 @@ export default function QRCodeDisplay({
   onQRScanned,
   blockDesktopPay = false,
 }: QRCodeDisplayProps) {
+  const ta = qrCode.upiTargetApp;
+  const typeLabel = ta && ta !== 'ANY' ? upiSlotAppLabel(ta) : '';
+  const bankLine = (qrCode.bankName || '').trim();
   const href = useMemo(
     () => (payHref ? resolvePayButtonHref(payHref, preferredUpiApp) : ''),
     [payHref, preferredUpiApp]
@@ -101,6 +108,21 @@ export default function QRCodeDisplay({
           </div>
         )}
       </div>
+
+      {(typeLabel || bankLine) && (
+        <div className="mb-3 w-full text-center text-xs text-muted-foreground space-y-0.5 text-pretty">
+          {typeLabel ? (
+            <p>
+              <span className="text-foreground/80 font-medium">UPI app:</span> {typeLabel}
+            </p>
+          ) : null}
+          {bankLine ? (
+            <p>
+              <span className="text-foreground/80 font-medium">Bank:</span> {bankLine}
+            </p>
+          ) : null}
+        </div>
+      )}
 
       <p className="text-center text-sm text-muted-foreground mb-4 text-pretty">
         Tap the QR on your phone to pay, or use the button below — both open your UPI app with this amount.

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type Settings = {
   emailContact?: string;
@@ -51,14 +52,24 @@ export default function ContactPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || 'We could not send your message. Please try again or use email or phone above.');
+        const msg =
+          data.error || 'We could not send your message. Please try again or use email or phone above.';
+        setError(msg);
+        toast({ title: 'Message not sent', description: msg, variant: 'destructive', duration: 7000 });
         return;
       }
       setSubmitted(true);
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      toast({
+        title: 'Message sent',
+        description: 'Thank you — we will read it and reply when we can.',
+        duration: 6000,
+      });
       setTimeout(() => setSubmitted(false), 5000);
     } catch {
-      setError('Network error. Please try again.');
+      const msg = 'Network error. Please try again.';
+      setError(msg);
+      toast({ title: 'Message not sent', description: msg, variant: 'destructive', duration: 6000 });
     } finally {
       setLoading(false);
     }

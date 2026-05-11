@@ -77,6 +77,7 @@ export async function ensureApplicationDefaults(): Promise<void> {
         upiId: '',
         upiTargetApp: 'ANY' as const,
         provider: 'POOL' as const,
+        bankName: '',
         displayName: `QR ${i + 1}`,
         isActive: true,
       }))

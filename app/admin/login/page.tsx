@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -33,16 +35,25 @@ export default function AdminLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Authentication failed');
+        const msg = data.error || 'Authentication failed';
+        setError(msg);
         if (typeof data.hint === 'string' && data.hint.length > 0) {
           setErrorHint(data.hint);
         }
+        toast({ title: 'Sign in failed', description: msg, variant: 'destructive', duration: 6000 });
         return;
       }
 
+      toast({ title: 'Welcome back', description: 'Loading your dashboard…', duration: 3000 });
       router.push('/admin/dashboard');
     } catch (err) {
       setError('An error occurred. Please try again.');
+      toast({
+        title: 'Sign in failed',
+        description: 'Network error. Please try again.',
+        variant: 'destructive',
+        duration: 6000,
+      });
       console.error('Auth error:', err);
     } finally {
       setLoading(false);
@@ -50,7 +61,14 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-dvh min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center px-4 py-10 sm:py-12 pb-[max(2.5rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))]">
+    <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-blue-50 px-4 py-8 sm:py-12 pb-[max(2.5rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))]">
+      <Link
+        href="/"
+        className="fixed z-20 inline-flex items-center gap-2 rounded-lg border border-gray-200/90 bg-white/95 px-3 py-2.5 text-sm font-medium text-gray-800 shadow-sm backdrop-blur-sm hover:bg-white hover:border-emerald-300/80 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 min-h-11 touch-manipulation left-[max(1rem,env(safe-area-inset-left,0px))] top-[max(1rem,env(safe-area-inset-top,0px))]"
+      >
+        <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+        Back to home
+      </Link>
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-5 sm:p-8">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mx-auto mb-4">

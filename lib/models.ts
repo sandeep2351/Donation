@@ -69,13 +69,14 @@ export interface IQRCode extends Document {
   /** Plain VPA only, e.g. `name@ybl` — used to build `upi://pay?…` with displayName when full string is unset/placeholder. */
   upiId?: string;
   /**
-   * Which Pay tab on /donate should prefer this slot’s UPI string. ANY = all tabs (rotation pool).
-   * Use one real `upi://…` per app if each app shows a different QR/VPA on your phone.
+   * Which UPI app this slot is for on /donate: ANY = all Pay tabs (shared pool), or one app only.
    */
   /** Default ANY when missing (older DB rows). */
   upiTargetApp?: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'ANY';
   /** POOL = shared rotation slot; legacy rows may still use app-specific enums. */
   provider: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'POOL';
+  /** Bank name for this QR / account (shown on donate when set). */
+  bankName?: string;
   displayName: string;
   isActive: boolean;
   scannedCount: number;
@@ -96,6 +97,7 @@ const qrCodeSchema = new Schema<IQRCode>(
       default: 'ANY',
     },
     provider: { type: String, enum: ['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'POOL'], required: true },
+    bankName: { type: String, default: '' },
     displayName: { type: String, required: true },
     isActive: { type: Boolean, default: true },
     scannedCount: { type: Number, default: 0 },

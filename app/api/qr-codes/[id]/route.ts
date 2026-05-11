@@ -25,6 +25,7 @@ export async function PATCH(
       doc.imageUrl = patch.imageUrl === '' ? null : patch.imageUrl;
     }
     if (patch.upiTargetApp !== undefined) doc.upiTargetApp = patch.upiTargetApp;
+    if (patch.bankName !== undefined) doc.bankName = patch.bankName.trim().slice(0, 120);
     if (patch.upiId !== undefined) {
       doc.upiId = patch.upiId.trim();
     }

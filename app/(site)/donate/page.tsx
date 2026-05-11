@@ -10,6 +10,7 @@ import {
   isLikelyDesktopWithoutNativeUpi,
 } from '@/lib/in-app-browser';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type QrRow = {
   _id: string;
@@ -19,6 +20,7 @@ type QrRow = {
   upiString?: string;
   /** Admin: which Pay tab uses this slot’s UPI (ANY = all tabs / shared pool). */
   upiTargetApp?: 'GOOGLE_PAY' | 'PHONEPE' | 'PAYTM' | 'ANY';
+  bankName?: string;
   /** Plain VPA when full upiString is not used, e.g. name@ybl */
   upiId?: string;
   imageUrl?: string | null;
@@ -150,19 +152,25 @@ export default function DonatePage() {
     setLoading(true);
 
     if (!finalAmount || finalAmount < 100) {
-      setError('Please enter a valid donation amount (minimum ₹100)');
+      const msg = 'Please enter a valid donation amount (minimum ₹100)';
+      setError(msg);
+      toast({ title: 'Check amount', description: msg, variant: 'destructive', duration: 6000 });
       setLoading(false);
       return;
     }
 
     if (!isAnonymous && !donorName.trim()) {
-      setError('Please enter your name, or mark the gift as anonymous');
+      const msg = 'Please enter your name, or mark the gift as anonymous';
+      setError(msg);
+      toast({ title: 'Name required', description: msg, variant: 'destructive', duration: 6000 });
       setLoading(false);
       return;
     }
 
     if (!activeQr) {
-      setError('Payment QR codes are not configured yet. Please try again later.');
+      const msg = 'Payment QR codes are not configured yet. Please try again later.';
+      setError(msg);
+      toast({ title: 'Payments unavailable', description: msg, variant: 'destructive', duration: 6000 });
       setLoading(false);
       return;
     }
@@ -187,6 +195,11 @@ export default function DonatePage() {
         throw new Error(j.error || 'Failed to process donation');
       }
 
+      toast({
+        title: 'Thank you',
+        description: `Your ₹${finalAmount.toLocaleString('en-IN')} gift was recorded.`,
+        duration: 5000,
+      });
       setSubmitted(true);
       setTimeout(() => {
         setDonorName('');
@@ -197,7 +210,9 @@ export default function DonatePage() {
         setSubmitted(false);
       }, 3200);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to process donation. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to process donation. Please try again.';
+      setError(msg);
+      toast({ title: 'Donation not recorded', description: msg, variant: 'destructive', duration: 7000 });
       console.error('Donation error:', err);
     } finally {
       setLoading(false);
@@ -451,6 +466,8 @@ export default function DonatePage() {
                         code: activeQr.code,
                         imageUrl: activeQr.imageUrl || undefined,
                         cloudinaryUrl: activeQr.imageUrl || undefined,
+                        upiTargetApp: activeQr.upiTargetApp,
+                        bankName: activeQr.bankName || undefined,
                       }}
                       payHref={upiPayHref}
                       payAmountRupees={finalAmount}
