@@ -63,6 +63,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   const [medicalListLoading, setMedicalListLoading] = useState(false);
   const [medicalUploading, setMedicalUploading] = useState(false);
   const [medicalModalOpen, setMedicalModalOpen] = useState(false);
+  const [medicalEditId, setMedicalEditId] = useState<string | null>(null);
 
   const [donationNotes, setDonationNotes] = useState<Record<string, string>>({});
   const [qrUploadingId, setQrUploadingId] = useState<string | null>(null);
@@ -488,52 +489,111 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
+  const emptyMedicalForm = () => ({
+    title: '',
+    category: 'LAB_REPORTS',
+    description: '',
+    date: new Date().toISOString().slice(0, 10),
+    doctorName: '',
+    hospital: '',
+    documentUrl: '',
+    documentFileName: '',
+    documentCloudinaryId: '',
+    documentMimeType: '',
+    documentResourceType: '' as '' | 'image' | 'raw',
+    fileSizeBytes: undefined as number | undefined,
+    isPublic: true,
+  });
+
+  const medicalFormFromReport = (r: Record<string, unknown>) => {
+    const dateVal = r.date ? new Date(r.date as string) : new Date();
+    const resourceType = r.documentResourceType;
+    return {
+      title: String(r.title || ''),
+      category: String(r.category || 'LAB_REPORTS'),
+      description: String(r.description || ''),
+      date: dateVal.toISOString().slice(0, 10),
+      doctorName: String(r.doctorName || ''),
+      hospital: String(r.hospital || ''),
+      documentUrl: String(r.documentUrl || ''),
+      documentFileName: String(r.documentFileName || ''),
+      documentCloudinaryId: String(r.documentCloudinaryId || ''),
+      documentMimeType: String(r.documentMimeType || ''),
+      documentResourceType:
+        resourceType === 'image' || resourceType === 'raw' ? resourceType : ('' as '' | 'image' | 'raw'),
+      fileSizeBytes: typeof r.fileSizeBytes === 'number' ? r.fileSizeBytes : undefined,
+      isPublic: r.isPublic !== false,
+    };
+  };
+
+  const openMedicalAddModal = () => {
+    setMedicalMsg('');
+    setMedicalEditId(null);
+    setMedicalForm(emptyMedicalForm());
+    setMedicalModalOpen(true);
+  };
+
+  const openMedicalEditModal = (r: Record<string, unknown>) => {
+    setMedicalMsg('');
+    setMedicalEditId(String(r._id));
+    setMedicalForm(medicalFormFromReport(r));
+    setMedicalModalOpen(true);
+  };
+
   const closeMedicalModal = () => {
     setMedicalModalOpen(false);
+    setMedicalEditId(null);
     setMedicalMsg('');
-    setMedicalForm({
-      title: '',
-      category: 'LAB_REPORTS',
-      description: '',
-      date: new Date().toISOString().slice(0, 10),
-      doctorName: '',
-      hospital: '',
-      documentUrl: '',
-      documentFileName: '',
-      documentCloudinaryId: '',
-      documentMimeType: '',
-      documentResourceType: '' as '' | 'image' | 'raw',
-      fileSizeBytes: undefined,
-      isPublic: true,
-    });
+    setMedicalForm(emptyMedicalForm());
   };
 
   const submitMedical = async (e: React.FormEvent) => {
     e.preventDefault();
     setMedicalMsg('');
+    const payload = {
+      ...medicalForm,
+      date: new Date(medicalForm.date).toISOString(),
+      documentUrl: medicalForm.documentUrl || undefined,
+      documentFileName: medicalForm.documentFileName || undefined,
+      documentCloudinaryId: medicalForm.documentCloudinaryId || undefined,
+      documentMimeType: medicalForm.documentMimeType || undefined,
+      documentResourceType: medicalForm.documentResourceType || undefined,
+      fileSizeBytes: medicalForm.fileSizeBytes,
+    };
     try {
-      const r = await fetch('/api/medical', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...medicalForm,
-          date: new Date(medicalForm.date).toISOString(),
-          documentUrl: medicalForm.documentUrl || undefined,
-          documentFileName: medicalForm.documentFileName || undefined,
-          documentCloudinaryId: medicalForm.documentCloudinaryId || undefined,
-          documentMimeType: medicalForm.documentMimeType || undefined,
-          documentResourceType: medicalForm.documentResourceType || undefined,
-          fileSizeBytes: medicalForm.fileSizeBytes,
-        }),
-      });
+      const r = medicalEditId
+        ? await fetch(`/api/medical/${medicalEditId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              documentUrl: medicalForm.documentUrl || '',
+            }),
+          })
+        : await fetch('/api/medical', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
         const msg = j.error || 'Failed';
         setMedicalMsg(msg);
-        toast({ title: 'Could not publish', description: String(msg), variant: 'destructive', duration: 7000 });
+        toast({
+          title: medicalEditId ? 'Could not save changes' : 'Could not publish',
+          description: String(msg),
+          variant: 'destructive',
+          duration: 7000,
+        });
         return;
       }
-      toast({ title: 'Document published', description: 'Listed in admin; toggle public to show on /medical.', duration: 5000 });
+      toast({
+        title: medicalEditId ? 'Document updated' : 'Document published',
+        description: medicalEditId
+          ? 'Changes were saved to the database.'
+          : 'Listed in admin; toggle public to show on /medical.',
+        duration: 5000,
+      });
       closeMedicalModal();
       fetchMedicalList();
     } catch {
@@ -1119,10 +1179,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
             </div>
             <button
               type="button"
-              onClick={() => {
-                setMedicalMsg('');
-                setMedicalModalOpen(true);
-              }}
+              onClick={openMedicalAddModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-95 shrink-0"
             >
               <Plus className="w-4 h-4" />
@@ -1205,6 +1262,14 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
+                                onClick={() => openMedicalEditModal(r)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-border rounded-md hover:bg-secondary"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => toggleMedicalPublic(id, Boolean(r.isPublic))}
                                 className="px-2 py-1 text-xs border border-border rounded-md hover:bg-secondary"
                               >
@@ -1243,7 +1308,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               >
                 <div className="flex justify-between items-start gap-4 mb-4">
                   <h3 id="medical-modal-title" className="text-lg font-semibold text-foreground">
-                    Publish new document
+                    {medicalEditId ? 'Edit document' : 'Publish new document'}
                   </h3>
                   <button
                     type="button"
@@ -1373,7 +1438,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                       className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
                     >
                       <Save className="w-4 h-4" />
-                      Save to database
+                      {medicalEditId ? 'Save changes' : 'Save to database'}
                     </button>
                     <button
                       type="button"
