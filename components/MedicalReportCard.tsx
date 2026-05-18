@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, Download, Eye, X } from 'lucide-react';
+import { FileText, Download, Eye, Loader2, X } from 'lucide-react';
+import { resolveMedicalDownloadFileName } from '@/lib/download-filename';
+import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 
@@ -50,6 +52,13 @@ export default function MedicalReportCard({
   documentMimeType,
 }: MedicalReportCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const downloadFileName = resolveMedicalDownloadFileName(
+    title,
+    documentFileName,
+    documentUrl,
+    documentMimeType
+  );
   const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
   const embedSrc = documentUrl ? getEmbedSrc(documentUrl, documentMimeType, documentFileName) : '';
   const showImageEmbed = Boolean(documentUrl && isLikelyImage(documentUrl, documentResourceType));
@@ -67,6 +76,59 @@ export default function MedicalReportCard({
       document.body.style.overflow = prev;
     };
   }, [previewOpen]);
+
+  const triggerBlobDownload = (blob: Blob) => {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = downloadFileName;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  };
+
+  const handleDownload = async () => {
+    if (!documentUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const q = new URLSearchParams({
+        url: documentUrl,
+        title,
+      });
+      if (documentFileName) q.set('documentFileName', documentFileName);
+      if (documentMimeType) q.set('documentMimeType', documentMimeType);
+
+      let blob: Blob | null = null;
+
+      const res = await fetch(`/api/medical/download?${q.toString()}`);
+      if (res.ok) {
+        blob = await res.blob();
+      } else {
+        const direct = await fetch(documentUrl, { mode: 'cors', credentials: 'omit' });
+        if (!direct.ok) throw new Error('Could not fetch file');
+        blob = await direct.blob();
+      }
+
+      triggerBlobDownload(blob);
+      toast({
+        title: 'Download started',
+        description: downloadFileName,
+        duration: 4000,
+      });
+    } catch (err) {
+      console.error('Download error:', err);
+      toast({
+        title: 'Download failed',
+        description: 'Could not save the file. Try Preview, then save from your browser.',
+        variant: 'destructive',
+        duration: 6000,
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const categoryColors: Record<string, string> = {
     DIAGNOSIS: 'bg-blue-100 text-blue-800',
@@ -108,15 +170,20 @@ export default function MedicalReportCard({
               <Eye className="h-4 w-4 shrink-0" aria-hidden />
               Preview
             </button>
-            <a
-              href={documentUrl}
-              download={documentFileName || undefined}
-              title={documentFileName ? `Download ${documentFileName}` : 'Download file'}
-              aria-label={documentFileName ? `Download ${documentFileName}` : 'Download file'}
-              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 touch-manipulation sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
+            <button
+              type="button"
+              onClick={() => void handleDownload()}
+              disabled={downloading}
+              title={`Download ${downloadFileName}`}
+              aria-label={`Download ${downloadFileName}`}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-800 transition-colors hover:bg-blue-100 disabled:opacity-60 touch-manipulation sm:h-10 sm:w-10 sm:min-h-0 sm:min-w-0"
             >
-              <Download className="h-4 w-4" aria-hidden />
-            </a>
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
+            </button>
           </div>
         )}
       </div>
