@@ -29,6 +29,12 @@ export interface IDonation extends Document {
   donationDate: Date;
   upiCode: number;
   paymentMethod: 'UPI' | 'MANUAL' | 'TRANSFER';
+  /** How the donor paid on /donate: QR scan, UPI ID entry, or mobile number. */
+  payChannel?: 'QR' | 'UPI_ID' | 'MOBILE';
+  /** UPI ID the donor selected when payChannel is UPI_ID. */
+  paidUpiId?: string;
+  /** Mobile number the donor selected when payChannel is MOBILE. */
+  paidMobile?: string;
   transactionId?: string;
   status: 'PENDING' | 'CONFIRMED' | 'RECEIVED';
   notes?: string;
@@ -50,6 +56,9 @@ const donationSchema = new Schema<IDonation>(
     donationDate: { type: Date, required: true },
     upiCode: Number,
     paymentMethod: { type: String, enum: ['UPI', 'MANUAL', 'TRANSFER'], required: true },
+    payChannel: { type: String, enum: ['QR', 'UPI_ID', 'MOBILE'] },
+    paidUpiId: String,
+    paidMobile: String,
     transactionId: String,
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'RECEIVED'], default: 'PENDING' },
     notes: String,

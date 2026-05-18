@@ -1,16 +1,46 @@
 import { z } from 'zod';
 
+export const donationPayChannelSchema = z.enum(['QR', 'UPI_ID', 'MOBILE']);
+export type DonationPayChannel = z.infer<typeof donationPayChannelSchema>;
+
 // Donation validation
-export const donationSchema = z.object({
-  donorName: z.string().min(2, 'Name must be at least 2 characters'),
-  donorEmail: z.string().email().optional().or(z.literal('')),
-  donorPhone: z.string().optional().or(z.literal('')),
-  amount: z.number().min(100, 'Minimum donation is 100'),
-  paymentMethod: z.enum(['UPI', 'MANUAL', 'TRANSFER']),
-  upiCode: z.number().optional(),
-  transactionId: z.string().optional(),
-  isAnonymous: z.boolean().default(false),
-});
+export const donationSchema = z
+  .object({
+    donorName: z.string().min(2, 'Name must be at least 2 characters'),
+    donorEmail: z.string().email().optional().or(z.literal('')),
+    donorPhone: z.string().optional().or(z.literal('')),
+    amount: z.number().min(100, 'Minimum donation is 100'),
+    paymentMethod: z.enum(['UPI', 'MANUAL', 'TRANSFER']),
+    payChannel: donationPayChannelSchema,
+    paidUpiId: z.string().optional(),
+    paidMobile: z.string().optional(),
+    upiCode: z.number().optional(),
+    transactionId: z.string().optional(),
+    isAnonymous: z.boolean().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (data.payChannel === 'UPI_ID' && !(data.paidUpiId || '').trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select the UPI ID you paid to',
+        path: ['paidUpiId'],
+      });
+    }
+    if (data.payChannel === 'MOBILE' && !(data.paidMobile || '').trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select the mobile number you paid to',
+        path: ['paidMobile'],
+      });
+    }
+    if (data.payChannel === 'QR' && data.upiCode == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'QR slot is required when paying by scan',
+        path: ['upiCode'],
+      });
+    }
+  });
 
 export type DonationInput = z.infer<typeof donationSchema>;
 

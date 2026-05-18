@@ -754,7 +754,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Email</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Phone</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Amount</th>
-                    <th className="px-3 py-3 text-left font-semibold text-foreground">Method</th>
+                    <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[140px]">Paid via</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Status</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground">Date</th>
                     <th className="px-3 py-3 text-left font-semibold text-foreground min-w-[180px]">Admin note</th>
@@ -778,7 +778,29 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                         <td className="px-3 py-3 font-semibold text-foreground whitespace-nowrap">
                           ₹{Number(donation.amount).toLocaleString('en-IN')}
                         </td>
-                        <td className="px-3 py-3 text-muted-foreground">{String(donation.paymentMethod)}</td>
+                        <td className="px-3 py-3 text-muted-foreground text-xs">
+                          {donation.payChannel === 'UPI_ID' ? (
+                            <span>
+                              <span className="font-medium text-foreground">UPI ID</span>
+                              <br />
+                              <span className="font-mono break-all">{String(donation.paidUpiId || '—')}</span>
+                            </span>
+                          ) : donation.payChannel === 'MOBILE' ? (
+                            <span>
+                              <span className="font-medium text-foreground">Mobile</span>
+                              <br />
+                              <span className="font-mono">{String(donation.paidMobile || '—')}</span>
+                            </span>
+                          ) : donation.payChannel === 'QR' ? (
+                            <span>
+                              <span className="font-medium text-foreground">QR scan</span>
+                              <br />
+                              Slot #{String(donation.upiCode ?? '—')}
+                            </span>
+                          ) : (
+                            String(donation.paymentMethod || '—')
+                          )}
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${

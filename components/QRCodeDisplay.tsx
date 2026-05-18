@@ -64,11 +64,6 @@ export default function QRCodeDisplay({
   const canPay = Boolean(payHref && amountOk);
   const showPayLink = canPay && Boolean(href) && !blockDesktopPay;
 
-  /**
-   * Start UPI navigation first. Calling `onPayClick` (parent setState) before `location.assign`
-   * re-renders the page and can cancel the custom-scheme handoff — user only sees "finish payment"
-   * with no app opening. Defer the follow-up UI until after the browser has tried to leave.
-   */
   const activatePay = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
       if (!href) return;
@@ -79,92 +74,93 @@ export default function QRCodeDisplay({
     [href, onPayClick]
   );
 
+  const qrImage = qrCode.cloudinaryUrl || qrCode.imageUrl;
+
   return (
-    <div className="flex w-full max-w-[min(100%,20rem)] flex-col items-center mx-auto">
+    <div className="flex w-full max-w-full flex-col items-stretch mx-auto">
       <div className="mb-4 w-full rounded-xl border border-border bg-white p-3 sm:p-4 shadow-sm">
-        {qrCode.cloudinaryUrl || qrCode.imageUrl ? (
-          <div className="mx-auto aspect-square max-h-[min(70vmin,18rem)] w-full max-w-[min(100%,18rem)] bg-white flex items-center justify-center">
-            {showPayLink && href ? (
-              <a
-                href={href}
-                target="_top"
-                onClick={activatePay}
-                className="block h-full w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
-                aria-label={
-                  amountOk && payAmountRupees
-                    ? `Pay ${payAmountRupees.toLocaleString('en-IN')} rupees with UPI`
-                    : 'Pay with UPI'
-                }
-              >
-                <img
-                  src={qrCode.cloudinaryUrl || qrCode.imageUrl}
-                  alt={`UPI QR code, slot ${qrCode.code} — tap to pay`}
-                  className="h-full w-full object-contain cursor-pointer"
-                  loading="lazy"
-                  sizes="(max-width: 640px) 85vw, 288px"
-                />
-              </a>
+        <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
+          <div className="shrink-0 mx-auto sm:mx-0 flex items-center justify-center">
+            {qrImage ? (
+              <div className="aspect-square w-[min(42vw,9.5rem)] sm:w-[9.5rem] bg-white flex items-center justify-center">
+                {showPayLink && href ? (
+                  <a
+                    href={href}
+                    target="_top"
+                    onClick={activatePay}
+                    className="block h-full w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
+                    aria-label={
+                      amountOk && payAmountRupees
+                        ? `Pay ${payAmountRupees.toLocaleString('en-IN')} rupees with UPI`
+                        : 'Pay with UPI'
+                    }
+                  >
+                    <img
+                      src={qrImage}
+                      alt={`UPI QR code, slot ${qrCode.code} — tap to pay`}
+                      className="h-full w-full object-contain cursor-pointer"
+                      loading="lazy"
+                      sizes="152px"
+                    />
+                  </a>
+                ) : (
+                  <img
+                    src={qrImage}
+                    alt={`UPI QR code, slot ${qrCode.code}`}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                    sizes="152px"
+                  />
+                )}
+              </div>
             ) : (
-              <img
-                src={qrCode.cloudinaryUrl || qrCode.imageUrl}
-                alt={`UPI QR code, slot ${qrCode.code}`}
-                className="h-full w-full object-contain"
-                loading="lazy"
-                sizes="(max-width: 640px) 85vw, 288px"
-              />
+              <div className="aspect-square w-[min(42vw,9.5rem)] sm:w-[9.5rem] flex items-center justify-center border border-dashed border-border rounded-lg">
+                <p className="text-muted-foreground text-xs text-center px-2 text-pretty">QR will appear here</p>
+              </div>
             )}
           </div>
-        ) : (
-          <div className="mx-auto aspect-square max-h-[min(70vmin,18rem)] w-full max-w-[min(100%,18rem)] bg-white flex items-center justify-center">
-            <p className="text-muted-foreground text-sm text-center px-2 text-pretty">QR Code will be displayed here</p>
-          </div>
-        )}
 
-        {displayUpiId ? (
-          <div
-            className="mt-3 w-full rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-3 text-center shadow-sm"
-            role="status"
-            aria-label={`UPI ID ${displayUpiId}`}
-          >
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/80 mb-1">
-              UPI ID
-            </p>
-            <p className="text-base sm:text-lg font-bold font-mono text-primary break-all select-all leading-snug">
-              {displayUpiId}
-            </p>
-            <p className="mt-1.5 text-[0.7rem] text-muted-foreground text-pretty">
-              Copy this ID or scan the QR above to pay
-            </p>
-          </div>
-        ) : null}
+          {displayUpiId ? (
+            <div className="flex flex-col gap-2 flex-1 min-w-0 justify-center">
+              <div
+                className="rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-2.5 text-center shadow-sm min-w-0"
+                role="status"
+                aria-label={`UPI ID ${displayUpiId}`}
+              >
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/80 mb-0.5">
+                  UPI ID
+                </p>
+                <p className="text-sm font-bold font-mono text-primary break-all select-all leading-snug">
+                  {displayUpiId}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-muted-foreground text-pretty">Copy or scan QR on the left</p>
+              </div>
 
-        {displayUpiId ? (
-          <div className="mt-3 w-full rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-3 text-left text-xs text-amber-950">
-            <p className="font-semibold text-amber-900 mb-2">Having trouble paying?</p>
-            <ul className="space-y-2 list-disc pl-4 text-pretty leading-relaxed marker:text-amber-700">
-              <li>
-                If the <strong className="font-semibold">QR scan does not work</strong>, open PhonePe, Google Pay, or
-                Paytm and pay using the <strong className="font-semibold">UPI ID</strong> shown above (paste it in Pay
-                to UPI ID).
-              </li>
-              <li>
-                If the <strong className="font-semibold">UPI ID also fails</strong>, use the{' '}
-                <strong className="font-semibold">10-digit mobile</strong> at the start of the ID (ignore any{' '}
-                <strong className="font-semibold">-2</strong> or similar suffix before @) — pay to that number directly
-                in your UPI app.
-                {mobileFromUpi ? (
-                  <>
-                    {' '}
-                    For this account:{' '}
-                    <span className="inline-block font-bold font-mono text-base text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded px-1.5 py-0.5 select-all">
-                      {mobileFromUpi}
-                    </span>
-                  </>
-                ) : null}
-              </li>
-            </ul>
-          </div>
-        ) : null}
+              <div className="rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-left text-[0.65rem] text-amber-950 min-w-0">
+                <p className="font-semibold text-amber-900 mb-1 text-xs">Having trouble?</p>
+                <ul className="space-y-1 list-disc pl-3.5 text-pretty leading-snug marker:text-amber-700">
+                  <li>
+                    QR failed? Pay via <strong className="font-semibold">UPI ID</strong> above.
+                  </li>
+                  <li>
+                    UPI ID failed? Use mobile
+                    {mobileFromUpi ? (
+                      <>
+                        {' '}
+                        <span className="font-bold font-mono text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded px-1 select-all">
+                          {mobileFromUpi}
+                        </span>
+                      </>
+                    ) : (
+                      ' (digits before @, ignore -2)'
+                    )}
+                    .
+                  </li>
+                </ul>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {(typeLabel || bankLine) && (
@@ -187,7 +183,7 @@ export default function QRCodeDisplay({
       </p>
 
       {blockDesktopPay && canPay ? (
-        <div className="w-full max-w-[min(100%,20rem)] space-y-2 rounded-xl border border-border bg-muted/50 px-3 py-3 text-center">
+        <div className="w-full space-y-2 rounded-xl border border-border bg-muted/50 px-3 py-3 text-center">
           <p className="text-sm font-medium text-foreground">Pay works on your phone</p>
           <p className="text-xs text-muted-foreground text-pretty leading-relaxed">
             Laptop browsers don&apos;t run UPI. Chrome on Mac may even open the wrong app (e.g. WhatsApp). Open this
@@ -200,7 +196,7 @@ export default function QRCodeDisplay({
           href={href}
           target="_top"
           onClick={activatePay}
-          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-95 transition-opacity text-sm font-semibold w-full max-w-[min(100%,20rem)] touch-manipulation shadow-sm"
+          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-95 transition-opacity text-sm font-semibold w-full touch-manipulation shadow-sm"
         >
           <ExternalLink className="w-4 h-4 shrink-0" aria-hidden />
           Pay ₹{payAmountRupees!.toLocaleString('en-IN')}
@@ -209,7 +205,7 @@ export default function QRCodeDisplay({
         <button
           type="button"
           disabled
-          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground text-sm font-medium w-full max-w-[min(100%,20rem)] cursor-not-allowed"
+          className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground text-sm font-medium w-full cursor-not-allowed"
         >
           Pay (enter ₹100+ and set UPI ID or full link in admin)
         </button>

@@ -3,8 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
-import { buildUpiPayUri, resolveQrBaseUpiForPayment } from '@/lib/upi-intent';
+import {
+  buildUpiPayUri,
+  collectMobilesFromQrSlots,
+  collectUpiIdsFromQrSlots,
+  resolveQrBaseUpiForPayment,
+} from '@/lib/upi-intent';
 import type { UpiAppTab } from '@/lib/upi-intent';
+import type { DonationPayChannel } from '@/lib/validations';
 import {
   isEmbeddedBrowserLikelyBreakingUpi,
   isLikelyDesktopWithoutNativeUpi,
@@ -68,6 +74,9 @@ export default function DonatePage() {
   const [payLinkOpened, setPayLinkOpened] = useState(false);
   const [badInAppBrowser, setBadInAppBrowser] = useState(false);
   const [desktopNoUpi, setDesktopNoUpi] = useState(false);
+  const [payChannel, setPayChannel] = useState<DonationPayChannel | ''>('');
+  const [selectedPaidUpiId, setSelectedPaidUpiId] = useState('');
+  const [selectedPaidMobile, setSelectedPaidMobile] = useState('');
 
   useEffect(() => {
     setBadInAppBrowser(isEmbeddedBrowserLikelyBreakingUpi());
@@ -83,6 +92,9 @@ export default function DonatePage() {
   }, [qrCodes]);
 
   const poolLen = qrPool.length;
+
+  const allUpiIds = useMemo(() => collectUpiIdsFromQrSlots(qrPool), [qrPool]);
+  const allMobiles = useMemo(() => collectMobilesFromQrSlots(qrPool), [qrPool]);
 
   const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
   const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
@@ -175,6 +187,30 @@ export default function DonatePage() {
       return;
     }
 
+    if (!payChannel) {
+      const msg = 'Please select how you paid (QR scan, UPI ID, or mobile number)';
+      setError(msg);
+      toast({ title: 'Payment method required', description: msg, variant: 'destructive', duration: 6000 });
+      setLoading(false);
+      return;
+    }
+
+    if (payChannel === 'UPI_ID' && !selectedPaidUpiId) {
+      const msg = 'Please select which UPI ID you paid to';
+      setError(msg);
+      toast({ title: 'UPI ID required', description: msg, variant: 'destructive', duration: 6000 });
+      setLoading(false);
+      return;
+    }
+
+    if (payChannel === 'MOBILE' && !selectedPaidMobile) {
+      const msg = 'Please select which mobile number you paid to';
+      setError(msg);
+      toast({ title: 'Mobile number required', description: msg, variant: 'destructive', duration: 6000 });
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/donations', {
         method: 'POST',
@@ -185,6 +221,9 @@ export default function DonatePage() {
           donorPhone,
           amount: finalAmount,
           paymentMethod: 'UPI',
+          payChannel,
+          paidUpiId: payChannel === 'UPI_ID' ? selectedPaidUpiId : undefined,
+          paidMobile: payChannel === 'MOBILE' ? selectedPaidMobile : undefined,
           upiCode: activeQr.code,
           isAnonymous,
         }),
@@ -207,6 +246,9 @@ export default function DonatePage() {
         setDonorPhone('');
         setCustomAmount('');
         setIsAnonymous(false);
+        setPayChannel('');
+        setSelectedPaidUpiId('');
+        setSelectedPaidMobile('');
         setSubmitted(false);
       }, 3200);
     } catch (err: unknown) {
@@ -348,6 +390,91 @@ export default function DonatePage() {
                 </div>
               </div>
 
+              <fieldset className="mb-6 space-y-3">
+                <legend className="sr-only">How did you pay?</legend>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <label htmlFor="payChannel" className="text-sm font-medium text-foreground shrink-0 sm:w-[7.5rem]">
+                    How did you pay? <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    id="payChannel"
+                    name="payChannel"
+                    value={payChannel}
+                    required
+                    onChange={(e) => {
+                      const v = e.target.value as DonationPayChannel | '';
+                      setPayChannel(v);
+                      setSelectedPaidUpiId('');
+                      setSelectedPaidMobile('');
+                    }}
+                    className="flex-1 min-w-0 w-full border border-border rounded-lg px-3 py-2 bg-background text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                  >
+                    <option value="">Select payment method…</option>
+                    <option value="QR">QR code scan</option>
+                    <option value="UPI_ID" disabled={allUpiIds.length === 0}>
+                      UPI ID{allUpiIds.length === 0 ? ' (not configured)' : ''}
+                    </option>
+                    <option value="MOBILE" disabled={allMobiles.length === 0}>
+                      Mobile number{allMobiles.length === 0 ? ' (not configured)' : ''}
+                    </option>
+                  </select>
+                </div>
+
+                {payChannel === 'UPI_ID' && allUpiIds.length > 0 ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <label htmlFor="paidUpiId" className="text-sm font-medium text-foreground shrink-0 sm:w-[7.5rem]">
+                      UPI ID paid to <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      id="paidUpiId"
+                      name="paidUpiId"
+                      value={selectedPaidUpiId}
+                      required
+                      onChange={(e) => setSelectedPaidUpiId(e.target.value)}
+                      className="flex-1 min-w-0 w-full border border-border rounded-lg px-3 py-2 bg-background text-sm font-mono focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                    >
+                      <option value="">Choose UPI ID…</option>
+                      {allUpiIds.map((id) => (
+                        <option key={id} value={id}>
+                          {id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                {payChannel === 'MOBILE' && allMobiles.length > 0 ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <label htmlFor="paidMobile" className="text-sm font-medium text-foreground shrink-0 sm:w-[7.5rem]">
+                      Mobile paid to <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      id="paidMobile"
+                      name="paidMobile"
+                      value={selectedPaidMobile}
+                      required
+                      onChange={(e) => setSelectedPaidMobile(e.target.value)}
+                      className="flex-1 min-w-0 w-full border border-border rounded-lg px-3 py-2 bg-background text-sm font-mono focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                    >
+                      <option value="">Choose mobile…</option>
+                      {allMobiles.map((mobile) => (
+                        <option key={mobile} value={mobile}>
+                          {mobile}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                {payChannel === 'QR' && activeQr ? (
+                  <p className="text-xs text-muted-foreground text-pretty sm:pl-[calc(7.5rem+0.75rem)] rounded-lg border border-border bg-secondary/40 px-3 py-2">
+                    Recording payment via <strong className="text-foreground">QR #{activeQr.code}</strong>
+                    {activeQr.displayName ? ` (${activeQr.displayName})` : ''} shown on the right.
+                  </p>
+                ) : null}
+              </fieldset>
+
               {error && (
                 <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex gap-2">
                   <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -357,7 +484,14 @@ export default function DonatePage() {
 
               <button
                 type="submit"
-                disabled={loading || !finalAmount || qrLoading}
+                disabled={
+                  loading ||
+                  !finalAmount ||
+                  qrLoading ||
+                  !payChannel ||
+                  (payChannel === 'UPI_ID' && !selectedPaidUpiId) ||
+                  (payChannel === 'MOBILE' && !selectedPaidMobile)
+                }
                 className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity font-semibold"
               >
                 {loading ? 'Saving…' : 'Confirm donation'}
@@ -460,7 +594,7 @@ export default function DonatePage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col items-center">
+                  <div className="w-full max-w-xl mx-auto">
                     <QRCodeDisplay
                       qrCode={{
                         code: activeQr.code,

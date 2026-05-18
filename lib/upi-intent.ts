@@ -73,6 +73,39 @@ export function extractMobileFromUpiId(upiId: string | null | undefined): string
   return null;
 }
 
+/** Unique UPI IDs across all configured QR slots (for donor selection). */
+export function collectUpiIdsFromQrSlots(
+  slots: Array<{ upiId?: string | null; upiString?: string | null }>
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const slot of slots) {
+    const id = resolveDisplayUpiId(slot);
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+/** Unique 10-digit mobiles derived from slot UPI IDs (for donor selection). */
+export function collectMobilesFromQrSlots(
+  slots: Array<{ upiId?: string | null; upiString?: string | null }>
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const slot of slots) {
+    const id = resolveDisplayUpiId(slot);
+    const mobile = extractMobileFromUpiId(id);
+    if (mobile && !seen.has(mobile)) {
+      seen.add(mobile);
+      out.push(mobile);
+    }
+  }
+  return out;
+}
+
 /**
  * Build an NPCI UPI intent URI with amount and note for deep-linking into UPI apps (PhonePe, GPay, Paytm, etc.).
  * @param baseUpiString Stored value from DB, e.g. `upi://pay?pa=merchant@upi&pn=Name&cu=INR`
