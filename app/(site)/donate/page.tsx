@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useClientMounted } from '@/lib/use-client-mounted';
 
 type QrRow = {
   _id: string;
@@ -88,11 +89,13 @@ export default function DonatePage() {
   const [selectedPaidUpiId, setSelectedPaidUpiId] = useState('');
   const [selectedPaidMobile, setSelectedPaidMobile] = useState('');
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const formMounted = useClientMounted();
 
   useEffect(() => {
+    if (!formMounted) return;
     setBadInAppBrowser(isEmbeddedBrowserLikelyBreakingUpi());
     setDesktopNoUpi(isLikelyDesktopWithoutNativeUpi());
-  }, []);
+  }, [formMounted]);
 
   const predefinedAmounts = [1000, 5000, 10000, 25000, 50000];
 
@@ -307,6 +310,17 @@ export default function DonatePage() {
           <div className="lg:col-span-1 bg-card rounded-xl border border-border p-4 sm:p-8 h-fit shadow-sm">
             <h2 className="text-2xl font-serif font-bold text-foreground mb-6">Amount</h2>
 
+            {!formMounted ? (
+              <div className="space-y-4 animate-pulse" aria-hidden>
+                <div className="h-24 rounded-lg bg-secondary/60" />
+                <div className="h-10 rounded-lg bg-secondary/60" />
+                <div className="h-10 rounded-lg bg-secondary/60" />
+                <div className="h-10 rounded-lg bg-secondary/60" />
+                <div className="h-10 rounded-lg bg-secondary/60" />
+                <div className="h-12 rounded-lg bg-primary/20" />
+              </div>
+            ) : (
+            <>
             <form onSubmit={handleSubmit}>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-foreground mb-3">Quick amounts</label>
@@ -538,6 +552,8 @@ export default function DonatePage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            </>
+            )}
           </div>
 
           <div className="lg:col-span-2 min-w-0">

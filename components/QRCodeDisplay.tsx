@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
+import CopyValueButton from '@/components/CopyValueButton';
 import {
   extractMobileFromUpiId,
   resolveDisplayUpiId,
@@ -130,10 +131,13 @@ export default function QRCodeDisplay({
                 <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/80 mb-0.5">
                   UPI ID
                 </p>
-                <p className="text-sm font-bold font-mono text-primary break-all select-all leading-snug">
-                  {displayUpiId}
-                </p>
-                <p className="mt-1 text-[0.65rem] text-muted-foreground text-pretty">Copy or scan QR on the left</p>
+                <div className="flex items-center justify-center gap-2 min-w-0">
+                  <p className="text-sm font-bold font-mono text-primary break-all select-all leading-snug">
+                    {displayUpiId}
+                  </p>
+                  <CopyValueButton value={displayUpiId} label="UPI ID" />
+                </div>
+                <p className="mt-1 text-[0.65rem] text-muted-foreground text-pretty">Tap copy or scan QR on the left</p>
               </div>
 
               <div className="rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-left text-[0.65rem] text-amber-950 min-w-0">
@@ -145,12 +149,16 @@ export default function QRCodeDisplay({
                   <li>
                     UPI ID failed? Use mobile
                     {mobileFromUpi ? (
-                      <>
-                        {' '}
+                      <span className="inline-flex items-center gap-1 align-middle ml-0.5">
                         <span className="font-bold font-mono text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded px-1 select-all">
                           {mobileFromUpi}
                         </span>
-                      </>
+                        <CopyValueButton
+                          value={mobileFromUpi}
+                          label="mobile number"
+                          className="border-amber-300/80 text-amber-900 hover:bg-amber-100/80"
+                        />
+                      </span>
                     ) : (
                       ' (digits before @, ignore -2)'
                     )}
