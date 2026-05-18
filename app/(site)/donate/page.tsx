@@ -15,6 +15,16 @@ import {
   isEmbeddedBrowserLikelyBreakingUpi,
   isLikelyDesktopWithoutNativeUpi,
 } from '@/lib/in-app-browser';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -77,6 +87,7 @@ export default function DonatePage() {
   const [payChannel, setPayChannel] = useState<DonationPayChannel | ''>('');
   const [selectedPaidUpiId, setSelectedPaidUpiId] = useState('');
   const [selectedPaidMobile, setSelectedPaidMobile] = useState('');
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     setBadInAppBrowser(isEmbeddedBrowserLikelyBreakingUpi());
@@ -158,59 +169,57 @@ export default function DonatePage() {
     setPayLinkOpened(false);
   }, [upiPayHref, selectedUpiApp]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateDonationForm = (): string | null => {
+    if (!finalAmount || finalAmount < 100) {
+      return 'Please enter a valid donation amount (minimum ₹100)';
+    }
+    if (!isAnonymous && !donorName.trim()) {
+      return 'Please enter your name, or mark the gift as anonymous';
+    }
+    if (!activeQr) {
+      return 'Payment QR codes are not configured yet. Please try again later.';
+    }
+    if (!payChannel) {
+      return 'Please select how you paid (QR scan, UPI ID, or mobile number)';
+    }
+    if (payChannel === 'UPI_ID' && !selectedPaidUpiId) {
+      return 'Please select which UPI ID you paid to';
+    }
+    if (payChannel === 'MOBILE' && !selectedPaidMobile) {
+      return 'Please select which mobile number you paid to';
+    }
+    return null;
+  };
+
+  const payChannelSummary = useMemo(() => {
+    if (payChannel === 'QR' && activeQr) {
+      return `QR scan (slot #${activeQr.code})`;
+    }
+    if (payChannel === 'UPI_ID' && selectedPaidUpiId) {
+      return `UPI ID ${selectedPaidUpiId}`;
+    }
+    if (payChannel === 'MOBILE' && selectedPaidMobile) {
+      return `mobile ${selectedPaidMobile}`;
+    }
+    return '';
+  }, [payChannel, activeQr, selectedPaidUpiId, selectedPaidMobile]);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const validationError = validateDonationForm();
+    if (validationError) {
+      setError(validationError);
+      toast({ title: 'Please check the form', description: validationError, variant: 'destructive', duration: 6000 });
+      return;
+    }
+    setConfirmModalOpen(true);
+  };
+
+  const saveDonation = async () => {
+    if (!activeQr || !payChannel) return;
     setLoading(true);
-
-    if (!finalAmount || finalAmount < 100) {
-      const msg = 'Please enter a valid donation amount (minimum ₹100)';
-      setError(msg);
-      toast({ title: 'Check amount', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
-    if (!isAnonymous && !donorName.trim()) {
-      const msg = 'Please enter your name, or mark the gift as anonymous';
-      setError(msg);
-      toast({ title: 'Name required', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
-    if (!activeQr) {
-      const msg = 'Payment QR codes are not configured yet. Please try again later.';
-      setError(msg);
-      toast({ title: 'Payments unavailable', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
-    if (!payChannel) {
-      const msg = 'Please select how you paid (QR scan, UPI ID, or mobile number)';
-      setError(msg);
-      toast({ title: 'Payment method required', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
-    if (payChannel === 'UPI_ID' && !selectedPaidUpiId) {
-      const msg = 'Please select which UPI ID you paid to';
-      setError(msg);
-      toast({ title: 'UPI ID required', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
-    if (payChannel === 'MOBILE' && !selectedPaidMobile) {
-      const msg = 'Please select which mobile number you paid to';
-      setError(msg);
-      toast({ title: 'Mobile number required', description: msg, variant: 'destructive', duration: 6000 });
-      setLoading(false);
-      return;
-    }
-
+    setError('');
     try {
       const response = await fetch('/api/donations', {
         method: 'POST',
@@ -234,6 +243,7 @@ export default function DonatePage() {
         throw new Error(j.error || 'Failed to process donation');
       }
 
+      setConfirmModalOpen(false);
       toast({
         title: 'Thank you',
         description: `Your ₹${finalAmount.toLocaleString('en-IN')} gift was recorded.`,
@@ -494,9 +504,40 @@ export default function DonatePage() {
                 }
                 className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity font-semibold"
               >
-                {loading ? 'Saving…' : 'Confirm donation'}
+                Confirm donation
               </button>
             </form>
+
+            <AlertDialog open={confirmModalOpen} onOpenChange={(open) => !loading && setConfirmModalOpen(open)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Have you completed the payment?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-pretty space-y-2">
+                    <span className="block">
+                      Please confirm only if you have already sent{' '}
+                      <strong className="text-foreground">₹{finalAmount.toLocaleString('en-IN')}</strong> using{' '}
+                      {payChannelSummary || 'your selected method'}.
+                    </span>
+                    <span className="block text-muted-foreground">
+                      If you have not paid yet, tap <strong className="text-foreground">Not yet</strong>, complete the
+                      payment on the right, then return here to confirm.
+                    </span>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={loading}>Not yet</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={loading}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void saveDonation();
+                    }}
+                  >
+                    {loading ? 'Saving…' : 'Yes, I have donated'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <div className="lg:col-span-2 min-w-0">
