@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
+import { resolveDisplayUpiId, resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
 import { upiSlotAppLabel, type UpiQrTargetApp } from '@/lib/qr-defaults';
 
 interface QRCodeDisplayProps {
@@ -14,6 +14,8 @@ interface QRCodeDisplayProps {
     /** Matches admin “UPI app” (ANY or a specific app). */
     upiTargetApp?: UpiQrTargetApp;
     bankName?: string;
+    upiId?: string;
+    upiString?: string;
   };
   /** Full `upi://pay?...&am=...` link when amount is valid; omit if amount missing or no base UPI string */
   payHref?: string | null;
@@ -39,6 +41,10 @@ export default function QRCodeDisplay({
   const ta = qrCode.upiTargetApp;
   const typeLabel = ta && ta !== 'ANY' ? upiSlotAppLabel(ta) : '';
   const bankLine = (qrCode.bankName || '').trim();
+  const displayUpiId = useMemo(
+    () => resolveDisplayUpiId({ upiId: qrCode.upiId, upiString: qrCode.upiString }),
+    [qrCode.upiId, qrCode.upiString]
+  );
   const href = useMemo(
     () => (payHref ? resolvePayButtonHref(payHref, preferredUpiApp) : ''),
     [payHref, preferredUpiApp]
@@ -107,6 +113,24 @@ export default function QRCodeDisplay({
             <p className="text-muted-foreground text-sm text-center px-2 text-pretty">QR Code will be displayed here</p>
           </div>
         )}
+
+        {displayUpiId ? (
+          <div
+            className="mt-3 w-full rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-3 text-center shadow-sm"
+            role="status"
+            aria-label={`UPI ID ${displayUpiId}`}
+          >
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/80 mb-1">
+              UPI ID
+            </p>
+            <p className="text-base sm:text-lg font-bold font-mono text-primary break-all select-all leading-snug">
+              {displayUpiId}
+            </p>
+            <p className="mt-1.5 text-[0.7rem] text-muted-foreground text-pretty">
+              Copy this ID or scan the QR above to pay
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {(typeLabel || bankLine) && (

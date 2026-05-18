@@ -30,6 +30,25 @@ export function resolveQrBaseUpiForPayment(qr: {
   return buildBaseUpiUriFromVpa(qr.upiId, qr.displayName);
 }
 
+/** VPA to show donors (plain UPI ID field, or `pa` from a full UPI string). */
+export function resolveDisplayUpiId(qr: {
+  upiId?: string | null;
+  upiString?: string | null;
+}): string | null {
+  const id = (qr.upiId || '').trim();
+  if (id && UPI_ID_RE.test(id) && !/configure-in-admin/i.test(id)) return id;
+
+  const s = (qr.upiString || '').trim();
+  if (!s || isUnconfiguredPlaceholderUpi(s) || !/^upi:\/\/pay/i.test(s)) return null;
+
+  const qIndex = s.indexOf('?');
+  const qs = qIndex >= 0 ? s.slice(qIndex + 1) : '';
+  const pa = new URLSearchParams(qs).get('pa')?.trim();
+  if (pa && UPI_ID_RE.test(pa) && !/configure-in-admin/i.test(pa)) return pa;
+
+  return null;
+}
+
 /**
  * Build an NPCI UPI intent URI with amount and note for deep-linking into UPI apps (PhonePe, GPay, Paytm, etc.).
  * @param baseUpiString Stored value from DB, e.g. `upi://pay?pa=merchant@upi&pn=Name&cu=INR`

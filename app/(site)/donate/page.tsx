@@ -468,6 +468,8 @@ export default function DonatePage() {
                         cloudinaryUrl: activeQr.imageUrl || undefined,
                         upiTargetApp: activeQr.upiTargetApp,
                         bankName: activeQr.bankName || undefined,
+                        upiId: activeQr.upiId || undefined,
+                        upiString: activeQr.upiString || undefined,
                       }}
                       payHref={upiPayHref}
                       payAmountRupees={finalAmount}
