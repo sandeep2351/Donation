@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { resolveDisplayUpiId, resolvePayButtonHref, type UpiAppTab } from '@/lib/upi-intent';
+import {
+  extractMobileFromUpiId,
+  resolveDisplayUpiId,
+  resolvePayButtonHref,
+  type UpiAppTab,
+} from '@/lib/upi-intent';
 import { upiSlotAppLabel, type UpiQrTargetApp } from '@/lib/qr-defaults';
 
 interface QRCodeDisplayProps {
@@ -45,6 +50,7 @@ export default function QRCodeDisplay({
     () => resolveDisplayUpiId({ upiId: qrCode.upiId, upiString: qrCode.upiString }),
     [qrCode.upiId, qrCode.upiString]
   );
+  const mobileFromUpi = useMemo(() => extractMobileFromUpiId(displayUpiId), [displayUpiId]);
   const href = useMemo(
     () => (payHref ? resolvePayButtonHref(payHref, preferredUpiApp) : ''),
     [payHref, preferredUpiApp]
@@ -129,6 +135,34 @@ export default function QRCodeDisplay({
             <p className="mt-1.5 text-[0.7rem] text-muted-foreground text-pretty">
               Copy this ID or scan the QR above to pay
             </p>
+          </div>
+        ) : null}
+
+        {displayUpiId ? (
+          <div className="mt-3 w-full rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-3 text-left text-xs text-amber-950">
+            <p className="font-semibold text-amber-900 mb-2">Having trouble paying?</p>
+            <ul className="space-y-2 list-disc pl-4 text-pretty leading-relaxed marker:text-amber-700">
+              <li>
+                If the <strong className="font-semibold">QR scan does not work</strong>, open PhonePe, Google Pay, or
+                Paytm and pay using the <strong className="font-semibold">UPI ID</strong> shown above (paste it in Pay
+                to UPI ID).
+              </li>
+              <li>
+                If the <strong className="font-semibold">UPI ID also fails</strong>, use the{' '}
+                <strong className="font-semibold">10-digit mobile</strong> at the start of the ID (ignore any{' '}
+                <strong className="font-semibold">-2</strong> or similar suffix before @) — pay to that number directly
+                in your UPI app.
+                {mobileFromUpi ? (
+                  <>
+                    {' '}
+                    For this account:{' '}
+                    <span className="inline-block font-bold font-mono text-base text-amber-900 bg-amber-100/80 border border-amber-300/80 rounded px-1.5 py-0.5 select-all">
+                      {mobileFromUpi}
+                    </span>
+                  </>
+                ) : null}
+              </li>
+            </ul>
           </div>
         ) : null}
       </div>

@@ -50,6 +50,30 @@ export function resolveDisplayUpiId(qr: {
 }
 
 /**
+ * Indian mobile from a VPA local part, e.g. `8500669989@ybl`, `8500669989-2@ybl`, `918500669989-1@paytm`.
+ * Ignores common `-1` / `-2` suffixes after the 10-digit number.
+ */
+export function extractMobileFromUpiId(upiId: string | null | undefined): string | null {
+  const id = (upiId || '').trim();
+  if (!id) return null;
+  const local = id.split('@')[0]?.trim();
+  if (!local) return null;
+
+  const tenWithOptionalSuffix = local.match(/^(\d{10})(?:-\d+)?$/);
+  if (tenWithOptionalSuffix) return tenWithOptionalSuffix[1];
+
+  const with91 = local.match(/^91(\d{10})(?:-\d+)?$/);
+  if (with91) return with91[1];
+
+  if (/^\d+$/.test(local)) {
+    if (local.length === 10) return local;
+    if (local.length === 12 && local.startsWith('91')) return local.slice(2);
+  }
+
+  return null;
+}
+
+/**
  * Build an NPCI UPI intent URI with amount and note for deep-linking into UPI apps (PhonePe, GPay, Paytm, etc.).
  * @param baseUpiString Stored value from DB, e.g. `upi://pay?pa=merchant@upi&pn=Name&cu=INR`
  * @param amountRupees Whole rupees (not paise)
