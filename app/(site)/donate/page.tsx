@@ -89,6 +89,7 @@ export default function DonatePage() {
   const [selectedPaidUpiId, setSelectedPaidUpiId] = useState('');
   const [selectedPaidMobile, setSelectedPaidMobile] = useState('');
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [paymentAppUsed, setPaymentAppUsed] = useState('');
   const formMounted = useClientMounted();
 
   useEffect(() => {
@@ -237,6 +238,7 @@ export default function DonatePage() {
           paidUpiId: payChannel === 'UPI_ID' ? selectedPaidUpiId : undefined,
           paidMobile: payChannel === 'MOBILE' ? selectedPaidMobile : undefined,
           upiCode: activeQr.code,
+          paymentAppUsed: paymentAppUsed.trim() || undefined,
           isAnonymous,
         }),
       });
@@ -262,6 +264,7 @@ export default function DonatePage() {
         setPayChannel('');
         setSelectedPaidUpiId('');
         setSelectedPaidMobile('');
+        setPaymentAppUsed('');
         setSubmitted(false);
       }, 3200);
     } catch (err: unknown) {
@@ -497,6 +500,25 @@ export default function DonatePage() {
                     {activeQr.displayName ? ` (${activeQr.displayName})` : ''} shown on the right.
                   </p>
                 ) : null}
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <label
+                    htmlFor="paymentAppUsed"
+                    className="text-sm font-medium text-foreground shrink-0 sm:w-[7.5rem]"
+                  >
+                    App used{' '}
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </label>
+                  <input
+                    id="paymentAppUsed"
+                    name="paymentAppUsed"
+                    type="text"
+                    value={paymentAppUsed}
+                    onChange={(e) => setPaymentAppUsed(e.target.value)}
+                    placeholder="e.g. Google Pay, PhonePe, Paytm"
+                    className="flex-1 min-w-0 w-full border border-border rounded-lg px-3 py-2 bg-background text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                  />
+                </div>
               </fieldset>
 
               {error && (

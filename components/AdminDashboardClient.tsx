@@ -15,6 +15,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import type { UpiQrTargetApp } from '@/lib/qr-defaults';
+import { formatDateTimeIST } from '@/lib/format-datetime';
 
 interface AdminDashboardClientProps {
   activeTab: string;
@@ -688,8 +689,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               {String(donation.status)}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                            {new Date((donation.createdAt as string) || '').toLocaleDateString()}
+                          <td className="px-3 py-3 text-muted-foreground whitespace-nowrap text-xs">
+                            {formatDateTimeIST(donation.createdAt as string)}
                           </td>
                           <td className="px-3 py-3">
                             <button
@@ -800,6 +801,11 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                           ) : (
                             String(donation.paymentMethod || '—')
                           )}
+                          {typeof donation.paymentAppUsed === 'string' && donation.paymentAppUsed.trim() ? (
+                            <p className="mt-1 text-muted-foreground">
+                              App: <span className="text-foreground">{donation.paymentAppUsed.trim()}</span>
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-3 py-3">
                           <span
@@ -814,8 +820,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                             {String(donation.status)}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                          {new Date((donation.createdAt as string) || '').toLocaleDateString()}
+                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap text-xs">
+                          {formatDateTimeIST(donation.createdAt as string)}
                         </td>
                         <td className="px-3 py-2">
                           <textarea

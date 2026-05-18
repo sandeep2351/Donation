@@ -35,6 +35,8 @@ export interface IDonation extends Document {
   paidUpiId?: string;
   /** Mobile number the donor selected when payChannel is MOBILE. */
   paidMobile?: string;
+  /** UPI app name the donor used (optional), e.g. Google Pay, PhonePe. */
+  paymentAppUsed?: string;
   transactionId?: string;
   status: 'PENDING' | 'CONFIRMED' | 'RECEIVED';
   notes?: string;
@@ -59,6 +61,7 @@ const donationSchema = new Schema<IDonation>(
     payChannel: { type: String, enum: ['QR', 'UPI_ID', 'MOBILE'] },
     paidUpiId: String,
     paidMobile: String,
+    paymentAppUsed: String,
     transactionId: String,
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'RECEIVED'], default: 'PENDING' },
     notes: String,

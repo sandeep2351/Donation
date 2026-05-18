@@ -14,6 +14,7 @@ export const donationSchema = z
     payChannel: donationPayChannelSchema,
     paidUpiId: z.string().optional(),
     paidMobile: z.string().optional(),
+    paymentAppUsed: z.string().max(80).optional().or(z.literal('')),
     upiCode: z.number().optional(),
     transactionId: z.string().optional(),
     isAnonymous: z.boolean().default(false),
