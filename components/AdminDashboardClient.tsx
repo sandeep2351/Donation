@@ -14,7 +14,8 @@ import {
   Plus,
   Pencil,
 } from 'lucide-react';
-import type { UpiQrTargetApp } from '@/lib/qr-defaults';
+import { isUnconfiguredPlaceholderUpi, type UpiQrTargetApp } from '@/lib/qr-defaults';
+import { normalizeQrUpiPatch } from '@/lib/upi-intent';
 import { formatDateTimeIST } from '@/lib/format-datetime';
 
 interface AdminDashboardClientProps {
@@ -68,6 +69,20 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
 
   const [donationNotes, setDonationNotes] = useState<Record<string, string>>({});
   const [qrUploadingId, setQrUploadingId] = useState<string | null>(null);
+  const [qrActiveSavingId, setQrActiveSavingId] = useState<string | null>(null);
+
+  const formatQrPatchError = (payload: {
+    error?: string;
+    details?: { fieldErrors?: Record<string, string[]> };
+  }): string => {
+    const fields = payload.details?.fieldErrors;
+    if (fields) {
+      const msgs = Object.values(fields).flat().filter(Boolean);
+      if (msgs.length) return msgs.join(' ');
+    }
+    if (typeof payload.error === 'string' && payload.error) return payload.error;
+    return 'UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?';
+  };
 
   const fetchDonations = useCallback(async () => {
     try {
@@ -113,7 +128,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       for (const q of list) {
         const id = String(q._id);
         edits[id] = (q.imageUrl as string) || '';
-        upiEdits[id] = String((q as { upiString?: string }).upiString || '');
+        const rawUpi = String((q as { upiString?: string }).upiString || '');
+        upiEdits[id] = isUnconfiguredPlaceholderUpi(rawUpi) ? '' : rawUpi;
         upiIds[id] = String((q as { upiId?: string }).upiId || '');
         labels[id] = String(q.displayName || '');
         active[id] = (q as { isActive?: boolean }).isActive !== false;
@@ -415,27 +431,76 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
     }
   };
 
+  const patchQrActive = async (id: string, isActive: boolean): Promise<boolean> => {
+    setQrActiveSavingId(id);
+    try {
+      const r = await fetch(`/api/qr-codes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(formatQrPatchError(data));
+      await fetchQrs();
+      toast({
+        title: isActive ? 'QR shown on site' : 'QR hidden from site',
+        description: isActive
+          ? 'This slot is back in the donate-page rotation.'
+          : 'Donors will not see this slot until you turn it on again.',
+        duration: 5000,
+      });
+      return true;
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: 'Could not update QR visibility',
+        description: e instanceof Error ? e.message : 'Stay logged in and try again.',
+        variant: 'destructive',
+        duration: 8000,
+      });
+      return false;
+    } finally {
+      setQrActiveSavingId(null);
+    }
+  };
+
   const saveQr = async (id: string): Promise<boolean> => {
     try {
       const row = qrList.find((q) => String(q._id) === id);
       const code = row ? Number(row.code) : 0;
       const label = (qrLabelEdits[id] || '').trim();
-      const upi = (qrUpiStringEdits[id] || '').trim();
-      const upiId = (qrUpiIdEdits[id] || '').trim();
+      const { upiId, upiString: upi } = normalizeQrUpiPatch({
+        upiId: qrUpiIdEdits[id] || '',
+        upiString: qrUpiStringEdits[id] || '',
+      });
+      const imageRaw = (qrEdits[id] || '').trim();
+      let imageUrl: string | undefined = '';
+      if (!imageRaw) {
+        imageUrl = '';
+      } else {
+        try {
+          new URL(imageRaw);
+          imageUrl = imageRaw;
+        } catch {
+          imageUrl = undefined;
+        }
+      }
+      const body: Record<string, unknown> = {
+        displayName: label || `QR ${code}`,
+        upiString: upi,
+        upiId,
+        isActive: qrActiveEdits[id] !== false,
+        upiTargetApp: qrTargetAppEdits[id] ?? 'ANY',
+        bankName: (bankNameEdits[id] || '').trim(),
+      };
+      if (imageUrl !== undefined) body.imageUrl = imageUrl;
       const r = await fetch(`/api/qr-codes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl: qrEdits[id] || '',
-          displayName: label || `QR ${code}`,
-          upiString: upi,
-          upiId,
-          isActive: qrActiveEdits[id] !== false,
-          upiTargetApp: qrTargetAppEdits[id] ?? 'ANY',
-          bankName: (bankNameEdits[id] || '').trim(),
-        }),
+        body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error('patch failed');
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(formatQrPatchError(data));
       await fetchQrs();
       toast({ title: 'QR slot saved', description: 'Changes are live on the donate page.', duration: 5000 });
       return true;
@@ -444,7 +509,9 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
       toast({
         title: 'Could not save QR slot',
         description:
-          'UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?',
+          e instanceof Error
+            ? e.message
+            : 'UPI ID must look like name@ybl, or use a full UPI string starting with upi://pay?',
         variant: 'destructive',
         duration: 8000,
       });
@@ -1008,12 +1075,21 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               <input
                                 type="checkbox"
                                 checked={qrActiveEdits[id] !== false}
-                                onChange={(e) =>
-                                  setQrActiveEdits((m) => ({ ...m, [id]: e.target.checked }))
-                                }
-                                className="rounded border-border"
+                                disabled={qrActiveSavingId === id}
+                                onChange={async (e) => {
+                                  const checked = e.target.checked;
+                                  const prev = qrActiveEdits[id] !== false;
+                                  setQrActiveEdits((m) => ({ ...m, [id]: checked }));
+                                  const ok = await patchQrActive(id, checked);
+                                  if (!ok) {
+                                    setQrActiveEdits((m) => ({ ...m, [id]: prev }));
+                                  }
+                                }}
+                                className="rounded border-border disabled:opacity-50"
                               />
-                              <span className="text-muted-foreground">Show on site</span>
+                              <span className="text-muted-foreground">
+                                {qrActiveSavingId === id ? 'Updating…' : 'Show on site'}
+                              </span>
                             </label>
                           </td>
                           <td className="px-3 py-3">
@@ -1070,7 +1146,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                 <div className="flex justify-between items-start gap-4 mb-4">
                   <h3 id="qr-edit-modal-title" className="text-lg font-semibold text-foreground">
                     Edit QR slot #
-                    {qrList.find((q) => String(q._id) === qrEditModalId)?.code ?? ''}
+                    {String(qrList.find((q) => String(q._id) === qrEditModalId)?.code ?? '')}
                   </h3>
                   <button
                     type="button"
@@ -1161,12 +1237,19 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                     <input
                       type="checkbox"
                       checked={qrActiveEdits[qrEditModalId] !== false}
-                      onChange={(e) =>
-                        setQrActiveEdits((m) => ({ ...m, [qrEditModalId]: e.target.checked }))
-                      }
-                      className="rounded border-border"
+                      disabled={qrActiveSavingId === qrEditModalId}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        const prev = qrActiveEdits[qrEditModalId] !== false;
+                        setQrActiveEdits((m) => ({ ...m, [qrEditModalId]: checked }));
+                        const ok = await patchQrActive(qrEditModalId, checked);
+                        if (!ok) {
+                          setQrActiveEdits((m) => ({ ...m, [qrEditModalId]: prev }));
+                        }
+                      }}
+                      className="rounded border-border disabled:opacity-50"
                     />
-                    <span>Show on site</span>
+                    <span>{qrActiveSavingId === qrEditModalId ? 'Updating…' : 'Show on site'}</span>
                   </label>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeQrUpiPatch } from '@/lib/upi-intent';
 
 export const donationPayChannelSchema = z.enum(['QR', 'UPI_ID', 'MOBILE']);
 export type DonationPayChannel = z.infer<typeof donationPayChannelSchema>;
@@ -148,7 +149,7 @@ const upiIdField = z
   ])
   .optional();
 
-export const qrCodeUpdateSchema = z.object({
+const qrCodeUpdateBaseSchema = z.object({
   imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
   upiTargetApp: z.enum(['GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'ANY']).optional(),
   bankName: z.string().max(120).optional(),
@@ -165,6 +166,19 @@ export const qrCodeUpdateSchema = z.object({
     .optional(),
   displayName: z.string().min(1).max(120).optional(),
   isActive: z.boolean().optional(),
+});
+
+export const qrCodeUpdateSchema = qrCodeUpdateBaseSchema.transform((data) => {
+  if (data.upiId === undefined && data.upiString === undefined) return data;
+  const normalized = normalizeQrUpiPatch({
+    upiId: data.upiId ?? '',
+    upiString: data.upiString ?? '',
+  });
+  return {
+    ...data,
+    ...(data.upiId !== undefined ? { upiId: normalized.upiId } : {}),
+    ...(data.upiString !== undefined ? { upiString: normalized.upiString } : {}),
+  };
 });
 
 export const contactFormSchema = z.object({

@@ -3,6 +3,41 @@ import { isUnconfiguredPlaceholderUpi } from '@/lib/qr-defaults';
 /** Loose VPA check: local-part@psp-handle (dots/plus common in bank VPAs) */
 const UPI_ID_RE = /^[\w.+\-]{2,99}@[\w.\-]{2,99}$/i;
 
+/** `pa` from a stored `upi://pay?…` string, when present and valid. */
+export function extractVpaFromUpiPayUri(uri: string | undefined | null): string | null {
+  const s = (uri || '').trim();
+  if (!s || !/^upi:\/\/pay/i.test(s)) return null;
+  const qIndex = s.indexOf('?');
+  const qs = qIndex >= 0 ? s.slice(qIndex + 1) : '';
+  const pa = new URLSearchParams(qs).get('pa')?.trim();
+  if (pa && UPI_ID_RE.test(pa) && !/configure-in-admin/i.test(pa)) return pa;
+  return null;
+}
+
+/**
+ * Admin saves sometimes put a VPA in the UPI-string field, or paste a full URI into UPI ID.
+ * Normalize before validation so toggling active / re-saving does not fail on field mix-ups.
+ */
+export function normalizeQrUpiPatch(input: {
+  upiId?: string;
+  upiString?: string;
+}): { upiId: string; upiString: string } {
+  let upiId = (input.upiId ?? '').trim();
+  let upiString = (input.upiString ?? '').trim();
+
+  if (/^upi:\/\//i.test(upiId)) {
+    if (!/^upi:\/\//i.test(upiString)) upiString = upiId;
+    upiId = extractVpaFromUpiPayUri(upiId) || '';
+  }
+
+  if (upiString && !/^upi:\/\//i.test(upiString) && UPI_ID_RE.test(upiString)) {
+    if (!upiId) upiId = upiString;
+    upiString = '';
+  }
+
+  return { upiId, upiString };
+}
+
 /**
  * Build a minimal `upi://pay?pa=&pn=&cu=INR` base (no amount) from VPA + payee label.
  */
