@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Admin, CampaignSettings, QRCode } from '@/lib/models';
+import { Admin, CampaignSettings, CampaignUpdate, QRCode } from '@/lib/models';
 import { hashPassword } from '@/lib/auth';
 import { DEFAULT_UPI_PLACEHOLDER } from '@/lib/qr-defaults';
 
@@ -66,6 +66,18 @@ export async function ensureApplicationDefaults(): Promise<void> {
       existing.email = DEFAULT_ADMIN_EMAIL.toLowerCase();
       await existing.save();
     }
+  }
+
+  const newsCount = await CampaignUpdate.countDocuments();
+  if (newsCount === 0) {
+    await CampaignUpdate.create({
+      title: 'Welcome to our fundraiser',
+      content:
+        'We started this page to share honest updates about care and costs. Thank you for reading and for any support you can give.',
+      author: 'Family',
+      date: new Date(),
+      isPublished: true,
+    });
   }
 
   const qrCount = await QRCode.countDocuments();

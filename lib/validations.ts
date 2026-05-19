@@ -52,6 +52,8 @@ export const campaignUpdateSchema = z.object({
   content: z.string().min(20, 'Content must be at least 20 characters'),
   author: z.string().min(2, 'Author name required'),
   date: z.coerce.date(),
+  imageUrl: z.union([z.string().url(), z.literal('')]).optional(),
+  imageCloudinaryId: z.string().optional(),
   isPublished: z.boolean().optional(),
 });
 

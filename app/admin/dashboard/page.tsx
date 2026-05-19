@@ -78,6 +78,7 @@ export default function AdminDashboardPage() {
     { id: 'donations', label: 'Donations' },
     { id: 'qr-codes', label: 'QR Codes' },
     { id: 'medical', label: 'Medical Reports' },
+    { id: 'news', label: 'News' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -156,9 +157,9 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col sm:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar Navigation - Desktop */}
-        <div className="hidden sm:block w-56 shrink-0 bg-white border-r border-gray-200 sm:min-h-0">
+        <aside className="hidden sm:block w-56 shrink-0 bg-white border-r border-gray-200 sticky top-14 self-start h-[calc(100dvh-3.5rem)] overflow-y-auto">
           <nav className="p-6 space-y-2">
             {tabs.map((tab) => (
               <button
@@ -174,12 +175,12 @@ export default function AdminDashboardPage() {
               </button>
             ))}
           </nav>
-        </div>
+        </aside>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom,0px)+0.75rem)]">
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom,0px)+0.75rem)]">
           <AdminDashboardClient activeTab={activeTab} />
-        </div>
+        </main>
       </div>
     </div>
   );

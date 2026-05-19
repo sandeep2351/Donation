@@ -154,3 +154,30 @@
     touch-action: manipulation;
   }
 }
+
+/* Home page latest-news ticker (replaces deprecated <marquee>) */
+.news-marquee-track {
+  animation: news-marquee-scroll 80s linear infinite;
+}
+
+@keyframes news-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: 100% !important;
+    gap: 1.5rem;
+  }
+
+  .news-marquee-item {
+    max-width: 100%;
+  }
+}

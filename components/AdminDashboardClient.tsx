@@ -17,6 +17,7 @@ import {
 import { isUnconfiguredPlaceholderUpi, type UpiQrTargetApp } from '@/lib/qr-defaults';
 import { normalizeQrUpiPatch } from '@/lib/upi-intent';
 import { formatDateTimeIST } from '@/lib/format-datetime';
+import AdminNewsPanel from '@/components/AdminNewsPanel';
 
 interface AdminDashboardClientProps {
   activeTab: string;
@@ -1277,6 +1278,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
           )}
         </div>
       )}
+
+      {activeTab === 'news' && <AdminNewsPanel />}
 
       {activeTab === 'medical' && (
         <div className="space-y-6">

@@ -33,15 +33,24 @@ export async function GET(request: NextRequest) {
     }
 
     const query: Record<string, unknown> = { status: 'CONFIRMED' };
-    const donations = await Donation.find(query).sort({ donationDate: -1 }).limit(40).lean();
-    const sum = await Donation.aggregate([
-      { $match: { status: 'CONFIRMED' } },
-      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+    const skip = Math.max(0, Number.parseInt(searchParams.get('skip') || '0', 10) || 0);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10) || 20));
+
+    const [donations, sum, totalCount] = await Promise.all([
+      Donation.find(query).sort({ donationDate: -1 }).skip(skip).limit(limit + 1).lean(),
+      Donation.aggregate([
+        { $match: { status: 'CONFIRMED' } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Donation.countDocuments(query),
     ]);
 
-    const publicRows = donations.map((d) => ({
+    const hasMore = donations.length > limit;
+    const page = donations.slice(0, limit);
+
+    const publicRows = page.map((d) => ({
       _id: d._id,
-      donorName: d.isAnonymous ? 'Anonymous' : d.donorName,
+      donorName: d.isAnonymous ? 'A caring supporter' : d.donorName,
       amount: d.amount,
       donationDate: d.donationDate,
       isAnonymous: d.isAnonymous,
@@ -54,6 +63,8 @@ export async function GET(request: NextRequest) {
       totalConfirmed: sum[0]?.total || 0,
       donationCount: sum[0]?.count || 0,
       count: publicRows.length,
+      hasMore,
+      totalCount,
     });
   } catch (error) {
     console.error('Donation fetch error:', error);

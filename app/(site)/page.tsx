@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import ProgressBar from '@/components/ProgressBar';
-import UpdateCard from '@/components/UpdateCard';
+import LatestNewsMarquee from '@/components/LatestNewsMarquee';
+import RecentDonationsList from '@/components/RecentDonationsList';
 import { getHomePageData } from '@/lib/campaign-public';
 import { Heart, Users, Check } from 'lucide-react';
 
@@ -101,42 +102,21 @@ export default async function Home() {
               When the first donations come in, they will show up here.
             </p>
           ) : (
-            <div className="space-y-4">
-              {data.recentDonations.map((donation) => (
-                <div
-                  key={donation.id}
-                  className="bg-card rounded-lg p-4 sm:p-6 border border-border hover:shadow-md transition-shadow"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground text-base sm:text-lg break-words">{donation.donorName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(donation.donationDate).toLocaleDateString('en-IN', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                    <div className="text-left sm:text-right shrink-0">
-                      <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums">
-                        ₹{donation.amount.toLocaleString('en-IN')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <RecentDonationsList
+              initialDonations={data.recentDonations}
+              initialHasMore={data.recentDonationsHasMore}
+            />
           )}
 
           <div className="mt-8 text-center">
             <Link
               suppressHydrationWarning
               href="/donate"
-              className="inline-block px-6 py-2.5 text-primary font-medium hover:text-accent transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-medium text-base shadow-md hover:shadow-lg hover:opacity-95 transform hover:scale-[1.02] transition-all min-h-12 touch-manipulation"
             >
-              Make a donation →
+              <Heart className="w-5 h-5" aria-hidden />
+              Make a donation
+              <span aria-hidden>→</span>
             </Link>
           </div>
         </div>
@@ -147,24 +127,7 @@ export default async function Home() {
           <h2 className="text-2xl sm:text-3xl font-serif font-bold text-foreground mb-2">Latest news</h2>
           <p className="text-muted-foreground mb-8 text-pretty">Short notes from the family when there is something new to share.</p>
 
-          {data.updates.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center border border-dashed border-border rounded-lg">
-              Updates will appear here once published from the admin area.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {data.updates.map((update) => (
-                <UpdateCard
-                  key={update.id}
-                  title={update.title}
-                  content={update.content}
-                  author={update.author}
-                  date={update.date}
-                  imageUrl={update.imageUrl}
-                />
-              ))}
-            </div>
-          )}
+          <LatestNewsMarquee items={data.newsItems} />
 
         </div>
       </section>
