@@ -83,9 +83,9 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="flex min-h-dvh min-h-screen w-full min-w-0 flex-col bg-gray-50">
+    <div className="flex h-full w-full min-w-0 flex-col">
       {/* Header */}
-      <header className="shrink-0 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85 border-b border-gray-200 sticky top-0 z-40 pt-[env(safe-area-inset-top,0px)]">
+      <header className="z-40 shrink-0 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur supports-[backdrop-filter]:bg-white/85">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center min-h-14 sm:h-16 py-1 sm:py-0">
             <div className="flex items-center gap-3">
@@ -157,18 +157,17 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        {/* Sidebar Navigation - Desktop */}
-        <aside className="hidden sm:block w-56 shrink-0 bg-white border-r border-gray-200 sticky top-14 self-start h-[calc(100dvh-3.5rem)] overflow-y-auto">
-          <nav className="p-6 space-y-2">
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <aside className="hidden h-full w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-white sm:block">
+          <nav className="space-y-1 p-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full rounded-lg border-l-4 px-4 py-3 text-left font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-600'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                    : 'border-transparent text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {tab.label}
@@ -177,8 +176,7 @@ export default function AdminDashboardPage() {
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom,0px)+0.75rem)]">
+        <main className="min-h-0 min-w-0 flex-1 overflow-auto p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom,0px)+0.75rem)]">
           <AdminDashboardClient activeTab={activeTab} />
         </main>
       </div>

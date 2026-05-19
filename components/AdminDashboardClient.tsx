@@ -680,7 +680,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
   }
 
   return (
-    <div>
+    <div className="w-full min-w-0 max-w-full">
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
