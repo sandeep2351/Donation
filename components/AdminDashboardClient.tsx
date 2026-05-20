@@ -18,6 +18,7 @@ import { isUnconfiguredPlaceholderUpi, type UpiQrTargetApp } from '@/lib/qr-defa
 import { normalizeQrUpiPatch } from '@/lib/upi-intent';
 import { formatDateTimeIST } from '@/lib/format-datetime';
 import AdminNewsPanel from '@/components/AdminNewsPanel';
+import AdminPaypalLinksSection from '@/components/AdminPaypalLinksSection';
 
 interface AdminDashboardClientProps {
   activeTab: string;
@@ -866,6 +867,14 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
                               <br />
                               Slot #{String(donation.upiCode ?? '—')}
                             </span>
+                          ) : donation.payChannel === 'PAYPAL' ? (
+                            <span>
+                              <span className="font-medium text-foreground">PayPal</span>
+                              <br />
+                              <span className="font-mono break-all">
+                                paypal.me/{String(donation.paidPaypalHandle || '—')}
+                              </span>
+                            </span>
                           ) : (
                             String(donation.paymentMethod || '—')
                           )}
@@ -940,7 +949,7 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-serif font-bold text-foreground">QR codes</h2>
+              <h2 className="text-3xl font-serif font-bold text-foreground">QR codes &amp; PayPal</h2>
               <p className="text-muted-foreground text-sm max-w-2xl text-pretty mt-1">
                 <strong>UPI ID</strong> is the short address only (e.g. <code className="text-xs bg-secondary px-1 rounded">name@ybl</code>
                 ) — we build the pay link using <strong>Label</strong> as the payee name. Optional{' '}
@@ -1276,6 +1285,8 @@ export default function AdminDashboardClient({ activeTab }: AdminDashboardClient
               </div>
             </div>
           )}
+
+          <AdminPaypalLinksSection />
         </div>
       )}
 

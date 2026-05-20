@@ -76,7 +76,7 @@ export default function AdminDashboardPage() {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'donations', label: 'Donations' },
-    { id: 'qr-codes', label: 'QR Codes' },
+    { id: 'qr-codes', label: 'QR & PayPal' },
     { id: 'medical', label: 'Medical Reports' },
     { id: 'news', label: 'News' },
     { id: 'settings', label: 'Settings' },

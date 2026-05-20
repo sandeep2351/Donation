@@ -30,11 +30,15 @@ export interface IDonation extends Document {
   upiCode: number;
   paymentMethod: 'UPI' | 'MANUAL' | 'TRANSFER';
   /** How the donor paid on /donate: QR scan, UPI ID entry, or mobile number. */
-  payChannel?: 'QR' | 'UPI_ID' | 'MOBILE';
+  payChannel?: 'QR' | 'UPI_ID' | 'MOBILE' | 'PAYPAL';
   /** UPI ID the donor selected when payChannel is UPI_ID. */
   paidUpiId?: string;
   /** Mobile number the donor selected when payChannel is MOBILE. */
   paidMobile?: string;
+  /** paypal.me handle when payChannel is PAYPAL, e.g. sanddepp */
+  paidPaypalHandle?: string;
+  /** Admin PayPal link slot code when payChannel is PAYPAL. */
+  paypalLinkCode?: number;
   /** UPI app name the donor used (optional), e.g. Google Pay, PhonePe. */
   paymentAppUsed?: string;
   transactionId?: string;
@@ -57,10 +61,12 @@ const donationSchema = new Schema<IDonation>(
     currency: { type: String, default: 'INR' },
     donationDate: { type: Date, required: true },
     upiCode: Number,
-    paymentMethod: { type: String, enum: ['UPI', 'MANUAL', 'TRANSFER'], required: true },
-    payChannel: { type: String, enum: ['QR', 'UPI_ID', 'MOBILE'] },
+    paymentMethod: { type: String, enum: ['UPI', 'MANUAL', 'TRANSFER', 'PAYPAL'], required: true },
+    payChannel: { type: String, enum: ['QR', 'UPI_ID', 'MOBILE', 'PAYPAL'] },
     paidUpiId: String,
     paidMobile: String,
+    paidPaypalHandle: String,
+    paypalLinkCode: Number,
     paymentAppUsed: String,
     transactionId: String,
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'RECEIVED'], default: 'PENDING' },
@@ -97,6 +103,28 @@ export interface IQRCode extends Document {
   imageUrl?: string;
   createdAt: Date;
 }
+
+// PayPal.Me link slot (admin-managed, like QR pool)
+export interface IPaypalLink extends Document {
+  code: number;
+  displayName: string;
+  /** Handle only, e.g. sanddepp → paypal.me/sanddepp */
+  paypalHandle: string;
+  note?: string;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+const paypalLinkSchema = new Schema<IPaypalLink>(
+  {
+    code: { type: Number, required: true, unique: true },
+    displayName: { type: String, required: true },
+    paypalHandle: { type: String, required: true },
+    note: { type: String, default: '' },
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
 
 const qrCodeSchema = new Schema<IQRCode>(
   {
@@ -253,6 +281,8 @@ if (mongoose.models.QRCode) {
   delete mongoose.models.QRCode;
 }
 export const QRCode = mongoose.model<IQRCode>('QRCode', qrCodeSchema);
+export const PaypalLink =
+  mongoose.models.PaypalLink || mongoose.model<IPaypalLink>('PaypalLink', paypalLinkSchema);
 export const MedicalReport = mongoose.models.MedicalReport || mongoose.model<IMedicalReport>('MedicalReport', medicalReportSchema);
 export const CampaignUpdate = mongoose.models.CampaignUpdate || mongoose.model<ICampaignUpdate>('CampaignUpdate', campaignUpdateSchema);
 export const CampaignSettings = mongoose.models.CampaignSettings || mongoose.model<ICampaignSettings>('CampaignSettings', campaignSettingsSchema);

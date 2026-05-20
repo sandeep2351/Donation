@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Admin, CampaignSettings, CampaignUpdate, QRCode } from '@/lib/models';
+import { Admin, CampaignSettings, CampaignUpdate, PaypalLink, QRCode } from '@/lib/models';
 import { hashPassword } from '@/lib/auth';
 import { DEFAULT_UPI_PLACEHOLDER } from '@/lib/qr-defaults';
 
@@ -77,6 +77,17 @@ export async function ensureApplicationDefaults(): Promise<void> {
       author: 'Family',
       date: new Date(),
       isPublished: true,
+    });
+  }
+
+  const paypalCount = await PaypalLink.countDocuments();
+  if (paypalCount === 0) {
+    await PaypalLink.create({
+      code: 1,
+      displayName: 'Family PayPal',
+      paypalHandle: 'sanddepp',
+      note: 'Default PayPal.Me link',
+      isActive: true,
     });
   }
 

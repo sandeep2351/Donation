@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { normalizePayPalHandle } from '@/lib/paypal';
 import { normalizeQrUpiPatch } from '@/lib/upi-intent';
 
-export const donationPayChannelSchema = z.enum(['QR', 'UPI_ID', 'MOBILE']);
+export const donationPayChannelSchema = z.enum(['QR', 'UPI_ID', 'MOBILE', 'PAYPAL']);
 export type DonationPayChannel = z.infer<typeof donationPayChannelSchema>;
 
 // Donation validation
@@ -11,10 +12,12 @@ export const donationSchema = z
     donorEmail: z.string().email().optional().or(z.literal('')),
     donorPhone: z.string().optional().or(z.literal('')),
     amount: z.number().min(100, 'Minimum donation is 100'),
-    paymentMethod: z.enum(['UPI', 'MANUAL', 'TRANSFER']),
+    paymentMethod: z.enum(['UPI', 'MANUAL', 'TRANSFER', 'PAYPAL']),
     payChannel: donationPayChannelSchema,
     paidUpiId: z.string().optional(),
     paidMobile: z.string().optional(),
+    paidPaypalHandle: z.string().max(80).optional(),
+    paypalLinkCode: z.number().optional(),
     paymentAppUsed: z.string().max(80).optional().or(z.literal('')),
     upiCode: z.number().optional(),
     transactionId: z.string().optional(),
@@ -42,7 +45,35 @@ export const donationSchema = z
         path: ['upiCode'],
       });
     }
+    if (data.payChannel === 'PAYPAL' && !normalizePayPalHandle(data.paidPaypalHandle || '')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select which PayPal link you paid to',
+        path: ['paidPaypalHandle'],
+      });
+    }
   });
+
+const paypalHandleField = z
+  .string()
+  .min(2, 'PayPal handle required')
+  .max(80)
+  .transform((s) => normalizePayPalHandle(s))
+  .refine((s) => /^[\w.\-]+$/i.test(s), 'Use handle only, e.g. sanddepp');
+
+export const paypalLinkUpdateSchema = z.object({
+  displayName: z.string().min(1).max(120).optional(),
+  paypalHandle: paypalHandleField.optional(),
+  note: z.string().max(240).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const paypalLinkCreateSchema = z.object({
+  displayName: z.string().min(1).max(120).optional(),
+  paypalHandle: paypalHandleField,
+  note: z.string().max(240).optional(),
+  isActive: z.boolean().optional(),
+});
 
 export type DonationInput = z.infer<typeof donationSchema>;
 

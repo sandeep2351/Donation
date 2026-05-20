@@ -9,6 +9,7 @@ import {
   collectUpiIdsFromQrSlots,
   resolveQrBaseUpiForPayment,
 } from '@/lib/upi-intent';
+import { buildPayPalMeUrl, formatPayPalMeLabel } from '@/lib/paypal';
 import type { UpiAppTab } from '@/lib/upi-intent';
 import type { DonationPayChannel } from '@/lib/validations';
 import {
@@ -25,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useClientMounted } from '@/lib/use-client-mounted';
 
@@ -43,6 +44,17 @@ type QrRow = {
   imageUrl?: string | null;
   isActive?: boolean;
 };
+
+type PaypalRow = {
+  _id: string;
+  code: number;
+  displayName: string;
+  paypalHandle: string;
+  note?: string;
+  isActive?: boolean;
+};
+
+type PaymentTab = 'UPI' | 'PAYPAL';
 
 /** All three UPI lanes share one timer; each lane uses a fixed offset into the pool so slots can differ at the same moment. */
 const ROTATE_POOL_MS = 30_000;
@@ -79,6 +91,10 @@ export default function DonatePage() {
   const [error, setError] = useState('');
   const [qrCodes, setQrCodes] = useState<QrRow[]>([]);
   const [qrLoading, setQrLoading] = useState(true);
+  const [paypalLinks, setPaypalLinks] = useState<PaypalRow[]>([]);
+  const [paypalLoading, setPaypalLoading] = useState(true);
+  const [paymentTab, setPaymentTab] = useState<PaymentTab>('UPI');
+  const [selectedPaypalCode, setSelectedPaypalCode] = useState<number | null>(null);
   /** Increments every 30s when the pool has more than one slot; each app uses (tick + offset) % pool size. */
   const [rotationTick, setRotationTick] = useState(0);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiAppId>('GOOGLE_PAY');
@@ -108,11 +124,30 @@ export default function DonatePage() {
 
   const poolLen = qrPool.length;
 
+  const paypalPool = useMemo(
+    () => [...paypalLinks].filter((p) => p.isActive !== false).sort((a, b) => a.code - b.code),
+    [paypalLinks]
+  );
+
+  const activePaypal = useMemo(() => {
+    if (paypalPool.length === 0) return null;
+    if (selectedPaypalCode != null) {
+      const found = paypalPool.find((p) => p.code === selectedPaypalCode);
+      if (found) return found;
+    }
+    return paypalPool[0];
+  }, [paypalPool, selectedPaypalCode]);
+
   const allUpiIds = useMemo(() => collectUpiIdsFromQrSlots(qrPool), [qrPool]);
   const allMobiles = useMemo(() => collectMobilesFromQrSlots(qrPool), [qrPool]);
 
   const parsedAmount = customAmount.trim() === '' ? NaN : parseInt(customAmount, 10);
   const finalAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+
+  const paypalPayUrl = useMemo(() => {
+    if (!activePaypal) return null;
+    return buildPayPalMeUrl(activePaypal.paypalHandle, finalAmount >= 100 ? finalAmount : undefined);
+  }, [activePaypal, finalAmount]);
 
   const poolForTab = useMemo(() => {
     const tab = selectedUpiApp;
@@ -145,9 +180,27 @@ export default function DonatePage() {
     }
   }, []);
 
+  const loadPaypal = useCallback(async () => {
+    setPaypalLoading(true);
+    try {
+      const res = await fetch('/api/paypal-links');
+      const data = await res.json();
+      const list: PaypalRow[] = data.paypalLinks || [];
+      setPaypalLinks(list);
+      if (list.length > 0) {
+        setSelectedPaypalCode((prev) => prev ?? list[0].code);
+      }
+    } catch {
+      setPaypalLinks([]);
+    } finally {
+      setPaypalLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadQr();
-  }, [loadQr]);
+    loadPaypal();
+  }, [loadQr, loadPaypal]);
 
   useEffect(() => {
     if (poolLen <= 1) return;
@@ -173,6 +226,12 @@ export default function DonatePage() {
     setPayLinkOpened(false);
   }, [upiPayHref, selectedUpiApp]);
 
+  useEffect(() => {
+    if (paymentTab === 'PAYPAL') {
+      setPayChannel('PAYPAL');
+    }
+  }, [paymentTab]);
+
   const validateDonationForm = (): string | null => {
     if (!finalAmount || finalAmount < 100) {
       return 'Please enter a valid donation amount (minimum ₹100)';
@@ -180,11 +239,14 @@ export default function DonatePage() {
     if (!isAnonymous && !donorName.trim()) {
       return 'Please enter your name, or mark the gift as anonymous';
     }
-    if (!activeQr) {
+    if (paymentTab === 'UPI' && !activeQr) {
       return 'Payment QR codes are not configured yet. Please try again later.';
     }
+    if (paymentTab === 'PAYPAL' && !activePaypal) {
+      return 'PayPal is not configured yet. Please try again later.';
+    }
     if (!payChannel) {
-      return 'Please select how you paid (QR scan, UPI ID, or mobile number)';
+      return 'Please select how you paid';
     }
     if (payChannel === 'UPI_ID' && !selectedPaidUpiId) {
       return 'Please select which UPI ID you paid to';
@@ -192,10 +254,16 @@ export default function DonatePage() {
     if (payChannel === 'MOBILE' && !selectedPaidMobile) {
       return 'Please select which mobile number you paid to';
     }
+    if (payChannel === 'PAYPAL' && !activePaypal) {
+      return 'Please select which PayPal link you used';
+    }
     return null;
   };
 
   const payChannelSummary = useMemo(() => {
+    if (payChannel === 'PAYPAL' && activePaypal) {
+      return `PayPal ${formatPayPalMeLabel(activePaypal.paypalHandle)}`;
+    }
     if (payChannel === 'QR' && activeQr) {
       return `QR scan (slot #${activeQr.code})`;
     }
@@ -206,7 +274,7 @@ export default function DonatePage() {
       return `mobile ${selectedPaidMobile}`;
     }
     return '';
-  }, [payChannel, activeQr, selectedPaidUpiId, selectedPaidMobile]);
+  }, [payChannel, activeQr, activePaypal, selectedPaidUpiId, selectedPaidMobile]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,10 +289,13 @@ export default function DonatePage() {
   };
 
   const saveDonation = async () => {
-    if (!activeQr || !payChannel) return;
+    if (!payChannel) return;
+    if (paymentTab === 'UPI' && !activeQr) return;
+    if (paymentTab === 'PAYPAL' && !activePaypal) return;
     setLoading(true);
     setError('');
     try {
+      const isPaypal = payChannel === 'PAYPAL';
       const response = await fetch('/api/donations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,12 +304,14 @@ export default function DonatePage() {
           donorEmail,
           donorPhone,
           amount: finalAmount,
-          paymentMethod: 'UPI',
+          paymentMethod: isPaypal ? 'PAYPAL' : 'UPI',
           payChannel,
           paidUpiId: payChannel === 'UPI_ID' ? selectedPaidUpiId : undefined,
           paidMobile: payChannel === 'MOBILE' ? selectedPaidMobile : undefined,
-          upiCode: activeQr.code,
-          paymentAppUsed: paymentAppUsed.trim() || undefined,
+          paidPaypalHandle: isPaypal ? activePaypal?.paypalHandle : undefined,
+          paypalLinkCode: isPaypal ? activePaypal?.code : undefined,
+          upiCode: payChannel === 'QR' && activeQr ? activeQr.code : undefined,
+          paymentAppUsed: isPaypal ? 'PayPal' : paymentAppUsed.trim() || undefined,
           isAnonymous,
         }),
       });
@@ -445,6 +518,9 @@ export default function DonatePage() {
                     <option value="MOBILE" disabled={allMobiles.length === 0}>
                       Mobile number{allMobiles.length === 0 ? ' (not configured)' : ''}
                     </option>
+                    <option value="PAYPAL" disabled={paypalPool.length === 0}>
+                      PayPal{paypalPool.length === 0 ? ' (not configured)' : ''}
+                    </option>
                   </select>
                 </div>
 
@@ -501,6 +577,33 @@ export default function DonatePage() {
                   </p>
                 ) : null}
 
+                {payChannel === 'PAYPAL' && paypalPool.length > 1 ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <label htmlFor="paidPaypal" className="text-sm font-medium text-foreground shrink-0 sm:w-[7.5rem]">
+                      PayPal link <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      id="paidPaypal"
+                      value={selectedPaypalCode ?? ''}
+                      onChange={(e) => setSelectedPaypalCode(Number(e.target.value))}
+                      className="flex-1 min-w-0 w-full border border-border rounded-lg px-3 py-2 bg-background text-sm font-mono focus:ring-2 focus:ring-primary/30 outline-none"
+                    >
+                      {paypalPool.map((p) => (
+                        <option key={p.code} value={p.code}>
+                          {formatPayPalMeLabel(p.paypalHandle)} — {p.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                {payChannel === 'PAYPAL' && activePaypal ? (
+                  <p className="text-xs text-muted-foreground text-pretty sm:pl-[calc(7.5rem+0.75rem)] rounded-lg border border-border bg-secondary/40 px-3 py-2">
+                    Recording payment via PayPal{' '}
+                    <strong className="text-foreground">{formatPayPalMeLabel(activePaypal.paypalHandle)}</strong>
+                  </p>
+                ) : null}
+
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                   <label
                     htmlFor="paymentAppUsed"
@@ -533,10 +636,12 @@ export default function DonatePage() {
                 disabled={
                   loading ||
                   !finalAmount ||
-                  qrLoading ||
+                  (paymentTab === 'UPI' && qrLoading) ||
+                  (paymentTab === 'PAYPAL' && paypalLoading) ||
                   !payChannel ||
                   (payChannel === 'UPI_ID' && !selectedPaidUpiId) ||
-                  (payChannel === 'MOBILE' && !selectedPaidMobile)
+                  (payChannel === 'MOBILE' && !selectedPaidMobile) ||
+                  (payChannel === 'PAYPAL' && !activePaypal)
                 }
                 className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity font-semibold"
               >
@@ -580,24 +685,102 @@ export default function DonatePage() {
 
           <div className="lg:col-span-2 min-w-0">
             <div className="bg-card rounded-xl border border-border p-4 sm:p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-                <h2 className="text-2xl font-serif font-bold text-foreground">Scan to pay</h2>
-                {poolLen > 1 && (
-                  <p className="text-xs text-muted-foreground text-right max-w-xs sm:max-w-none">
-                    {poolForTabLen < poolLen ? (
-                      <>
-                        Tab pool: {poolForTabLen} of {poolLen} slots · full list rotates every {ROTATE_POOL_MS / 1000}s.
-                      </>
-                    ) : (
-                      <>
-                        Pool: {poolLen} slots · each app advances every {ROTATE_POOL_MS / 1000}s (lanes staggered).
-                      </>
-                    )}
-                  </p>
+              <h2 className="text-2xl font-serif font-bold text-foreground mb-4">Pay</h2>
+
+              <div className="mb-6" suppressHydrationWarning>
+                <p className="text-sm font-medium text-foreground mb-3">Payment method</p>
+                {formMounted ? (
+                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Payment method" suppressHydrationWarning>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={paymentTab === 'UPI'}
+                    onClick={() => setPaymentTab('UPI')}
+                    suppressHydrationWarning
+                    className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                      paymentTab === 'UPI'
+                        ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30'
+                        : 'border-border bg-background hover:bg-secondary/80'
+                    }`}
+                  >
+                    UPI (India)
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={paymentTab === 'PAYPAL'}
+                    onClick={() => setPaymentTab('PAYPAL')}
+                    suppressHydrationWarning
+                    className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                      paymentTab === 'PAYPAL'
+                        ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30'
+                        : 'border-border bg-background hover:bg-secondary/80'
+                    }`}
+                  >
+                    PayPal
+                  </button>
+                </div>
+                ) : (
+                  <div className="h-11 max-w-md animate-pulse rounded-lg bg-secondary/60" aria-hidden />
                 )}
               </div>
 
-              {qrLoading ? (
+              {paymentTab === 'PAYPAL' ? (
+                paypalLoading ? (
+                  <p className="text-center text-muted-foreground py-16">Loading PayPal…</p>
+                ) : !activePaypal ? (
+                  <p className="text-center text-muted-foreground py-16 text-pretty">
+                    No PayPal links yet. In admin, open <strong>QR &amp; PayPal</strong> and add a link (e.g.{' '}
+                    <code className="text-xs">sanddepp</code>).
+                  </p>
+                ) : (
+                  <div className="space-y-6 max-w-xl mx-auto">
+                    <div className="rounded-xl border border-border bg-secondary/40 p-6 text-center">
+                      <p className="text-sm text-muted-foreground mb-1">{activePaypal.displayName}</p>
+                      <p className="text-2xl font-mono font-semibold text-foreground mb-2">
+                        {formatPayPalMeLabel(activePaypal.paypalHandle)}
+                      </p>
+                      {activePaypal.note ? (
+                        <p className="text-sm text-muted-foreground text-pretty mb-4">{activePaypal.note}</p>
+                      ) : null}
+                      {paypalPool.length > 1 ? (
+                        <select
+                          className="mb-4 w-full max-w-sm mx-auto border border-border rounded-lg px-3 py-2 bg-background text-sm"
+                          value={selectedPaypalCode ?? activePaypal.code}
+                          onChange={(e) => setSelectedPaypalCode(Number(e.target.value))}
+                        >
+                          {paypalPool.map((p) => (
+                            <option key={p.code} value={p.code}>
+                              {formatPayPalMeLabel(p.paypalHandle)} — {p.displayName}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                      <a
+                        href={paypalPayUrl || buildPayPalMeUrl(activePaypal.paypalHandle)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 w-full sm:w-auto min-w-[14rem] px-6 py-3.5 bg-[#0070ba] text-white rounded-lg font-semibold hover:opacity-95 transition-opacity"
+                      >
+                        <ExternalLink className="w-5 h-5" aria-hidden />
+                        {finalAmount >= 100
+                          ? `Pay ₹${finalAmount.toLocaleString('en-IN')} with PayPal`
+                          : 'Open PayPal'}
+                      </a>
+                      {finalAmount < 100 && (
+                        <p className="text-xs text-muted-foreground mt-3 text-pretty">
+                          Enter ₹100 or more on the left to pre-fill the amount on PayPal.
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground text-pretty text-center">
+                      PayPal opens in a new tab. When finished, return here and tap{' '}
+                      <strong className="text-foreground">Confirm donation</strong> (choose PayPal under &quot;How did
+                      you pay?&quot;).
+                    </p>
+                  </div>
+                )
+              ) : qrLoading ? (
                 <p className="text-center text-muted-foreground py-16">Loading payment options…</p>
               ) : !activeQr ? (
                 <p className="text-center text-muted-foreground py-16 text-pretty">
