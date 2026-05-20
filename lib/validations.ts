@@ -215,9 +215,13 @@ export const qrCodeUpdateSchema = qrCodeUpdateBaseSchema.transform((data) => {
 });
 
 export const contactFormSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
-  email: z.string().email('Valid email required'),
-  phone: z.string().optional(),
-  subject: z.string().min(1, 'Subject is required'),
-  message: z.string().min(10, 'Please write a bit more detail'),
+  name: z.string().trim().min(2, 'Name is required'),
+  email: z.string().trim().email('Valid email required'),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  subject: z.string().trim().min(1, 'Please choose a subject'),
+  message: z.string().trim().min(10, 'Please write at least 10 characters'),
 });

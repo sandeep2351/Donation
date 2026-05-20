@@ -44,11 +44,34 @@ export default function ContactPage() {
     setLoading(true);
     setError('');
 
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim() || undefined,
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
+    };
+
+    if (!payload.subject) {
+      const msg = 'Please choose a subject.';
+      setError(msg);
+      toast({ title: 'Message not sent', description: msg, variant: 'destructive', duration: 6000 });
+      setLoading(false);
+      return;
+    }
+    if (payload.message.length < 10) {
+      const msg = 'Please write at least 10 characters in your message.';
+      setError(msg);
+      toast({ title: 'Message not sent', description: msg, variant: 'destructive', duration: 6000 });
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -229,7 +252,9 @@ export default function ContactPage() {
                     className={fieldClass}
                     suppressHydrationWarning
                   >
-                    <option value="">Choose…</option>
+                    <option value="" disabled>
+                      Choose…
+                    </option>
                     <option value="Donation question">Donation question</option>
                     <option value="Volunteering">Volunteering</option>
                     <option value="Medical question">Medical question</option>

@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     if (error instanceof ZodError) {
-      return NextResponse.json({ error: 'Invalid form', details: error.flatten() }, { status: 400 });
+      const first = error.errors[0]?.message ?? 'Invalid form';
+      return NextResponse.json({ error: first, details: error.flatten() }, { status: 400 });
     }
     console.error('Contact route error:', error);
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 });
