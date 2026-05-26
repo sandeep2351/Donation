@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import ProgressBar from '@/components/ProgressBar';
 import LatestNewsMarquee from '@/components/LatestNewsMarquee';
-import RecentDonationsList from '@/components/RecentDonationsList';
+// import RecentDonationsList from '@/components/RecentDonationsList';
 import { getHomePageData } from '@/lib/campaign-public';
 import { Heart, Users, Check } from 'lucide-react';
 
@@ -90,6 +90,7 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Recent supporters — hidden
       <section className="py-12 md:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl font-serif font-bold text-foreground mb-2">Recent supporters</h2>
@@ -121,6 +122,7 @@ export default async function Home() {
           </div>
         </div>
       </section>
+      */}
 
       <section className="bg-card py-12 md:py-16 border-t border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
