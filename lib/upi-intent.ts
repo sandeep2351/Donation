@@ -159,11 +159,26 @@ export function buildUpiPayUri(
   const qIndex = base.indexOf('?');
   const path = qIndex >= 0 ? base.slice(0, qIndex) : base;
   const qs = qIndex >= 0 ? base.slice(qIndex + 1) : '';
-  const params = new URLSearchParams(qs);
+  const original = new URLSearchParams(qs);
 
-  params.set('am', String(Math.round(amountRupees)));
-  if (!params.get('cu')) params.set('cu', 'INR');
+  /**
+   * IMPORTANT:
+   * Many QR-generated UPI URIs contain fixed `tr`/`tid`/`sign`/`mode` fields.
+   * Reusing those across multiple payments is a common trigger for “declined for security reasons”
+   * in some apps (notably PhonePe). So we rebuild a minimal URI with only safe fields.
+   */
+  const pa = original.get('pa')?.trim() || '';
+  if (!pa || /configure-in-admin/i.test(pa)) return null;
+
+  const pn = (original.get('pn') || '').trim().slice(0, 80) || 'Payee';
+  const cu = (original.get('cu') || '').trim() || 'INR';
   const tn = transactionNote.trim().slice(0, 80) || 'Donation';
+
+  const params = new URLSearchParams();
+  params.set('pa', pa);
+  params.set('pn', pn);
+  params.set('cu', cu);
+  params.set('am', String(Math.round(amountRupees)));
   params.set('tn', tn);
 
   return `${path}?${params.toString()}`;
