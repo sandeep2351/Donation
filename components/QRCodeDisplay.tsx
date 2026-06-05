@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { ClipboardList } from 'lucide-react';
 import CopyValueButton from '@/components/CopyValueButton';
 import {
-  buildManualPaymentClipboardText,
   extractMobileFromUpiId,
   getManualUpiPaySteps,
   resolveDisplayUpiId,
@@ -56,31 +55,25 @@ export default function QRCodeDisplay({
     onQRScanned?.(qrCode.code);
   }, [qrCode.code, onQRScanned]);
 
-  const copyAllDetails = useCallback(async () => {
+  const copyUpiId = useCallback(async () => {
     if (!displayUpiId) return;
-    const text = buildManualPaymentClipboardText({
-      upiId: displayUpiId,
-      amountRupees: amountOk ? payAmountRupees : undefined,
-      mobile: mobileFromUpi,
-      payeeName: qrCode.displayName,
-    });
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(displayUpiId);
       toast({
-        title: 'Payment details copied',
-        description: 'Open your UPI app, paste the UPI ID, and enter the amount.',
+        title: 'UPI ID copied',
+        description: 'Paste it in PhonePe / GPay → Pay → UPI ID, then enter the amount.',
         duration: 5000,
       });
       onPaymentStarted?.();
     } catch {
       toast({
         title: 'Could not copy',
-        description: 'Copy the UPI ID and amount manually from the boxes above.',
+        description: 'Select the UPI ID above and copy manually.',
         variant: 'destructive',
         duration: 5000,
       });
     }
-  }, [displayUpiId, amountOk, payAmountRupees, mobileFromUpi, qrCode.displayName, onPaymentStarted]);
+  }, [displayUpiId, onPaymentStarted]);
 
   const qrImage = qrCode.cloudinaryUrl || qrCode.imageUrl;
 
@@ -190,14 +183,14 @@ export default function QRCodeDisplay({
         Website payment links are not used — apps block them for personal accounts.
       </p>
 
-      {displayUpiId && amountOk ? (
+      {displayUpiId ? (
         <button
           type="button"
-          onClick={() => void copyAllDetails()}
+          onClick={() => void copyUpiId()}
           className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-95 transition-opacity text-sm font-semibold w-full touch-manipulation shadow-sm"
         >
           <ClipboardList className="w-4 h-4 shrink-0" aria-hidden />
-          Copy payment details (UPI ID + ₹{amountLabel})
+          Copy UPI ID
         </button>
       ) : (
         <button
@@ -205,7 +198,7 @@ export default function QRCodeDisplay({
           disabled
           className="flex items-center justify-center gap-2 min-h-12 px-4 py-3 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground text-sm font-medium w-full cursor-not-allowed"
         >
-          Enter ₹100+ on the left to show payment details
+          UPI ID not configured — add it in admin
         </button>
       )}
 
