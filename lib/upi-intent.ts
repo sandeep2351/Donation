@@ -141,10 +141,75 @@ export function collectMobilesFromQrSlots(
   return out;
 }
 
+/** Android package names (reference for native apps; donate page uses manual pay, not deep links). */
+export const UPI_ANDROID_PACKAGES = {
+  PHONEPE: 'com.phonepe.app',
+  GOOGLE_PAY: 'com.google.android.apps.nbu.paisa.user',
+  PAYTM: 'net.one97.paytm',
+} as const;
+
+export type UpiAppTab = keyof typeof UPI_ANDROID_PACKAGES;
+
+/** Whether a QR slot has a real VPA donors can pay to manually (UPI ID field or `pa` in UPI string). */
+export function qrSlotHasPayableUpiId(qr: {
+  upiId?: string | null;
+  upiString?: string | null;
+}): boolean {
+  return resolveDisplayUpiId(qr) !== null;
+}
+
+export type UpiManualPayApp = UpiAppTab | 'ANY';
+
+const MANUAL_PAY_STEPS: Record<UpiAppTab, string[]> = {
+  PHONEPE: [
+    'Open PhonePe → Pay / Send → UPI ID (or scan the QR above with PhonePe).',
+    'Paste the UPI ID, enter the amount shown here, note “Donation”, then pay.',
+    'If UPI ID is blocked, pay to the mobile number shown (same account).',
+  ],
+  GOOGLE_PAY: [
+    'Open Google Pay → New payment → UPI ID (or scan the QR above).',
+    'Paste the UPI ID, enter the amount shown here, note “Donation”, then pay.',
+  ],
+  PAYTM: [
+    'Open Paytm → Scan & Pay (QR above) or Pay → UPI ID.',
+    'Paste the UPI ID, enter the amount shown here, note “Donation”, then pay.',
+  ],
+};
+
+/** Step-by-step copy for personal (non-merchant) VPAs — avoids blocked `upi://pay` intents. */
+export function getManualUpiPaySteps(app: UpiManualPayApp): string[] {
+  if (app === 'ANY') {
+    return [
+      'Scan the QR with your UPI app, or copy the UPI ID and pay manually inside the app.',
+      'Enter the amount shown on this page and add note “Donation”.',
+      'Website “Pay” links are not used — PhonePe and other apps block them for personal accounts.',
+    ];
+  }
+  return MANUAL_PAY_STEPS[app];
+}
+
+/** Clipboard text donors can paste into notes or share with family. */
+export function buildManualPaymentClipboardText(input: {
+  upiId: string;
+  amountRupees?: number;
+  mobile?: string | null;
+  payeeName?: string;
+}): string {
+  const lines = [
+    input.payeeName ? `Payee: ${input.payeeName}` : '',
+    `UPI ID: ${input.upiId}`,
+    input.mobile ? `Mobile: ${input.mobile}` : '',
+    input.amountRupees && input.amountRupees >= 1
+      ? `Amount: ₹${input.amountRupees.toLocaleString('en-IN')}`
+      : '',
+    'Note: Donation',
+  ].filter(Boolean);
+  return lines.join('\n');
+}
+
 /**
- * Build an NPCI UPI intent URI with amount and note for deep-linking into UPI apps (PhonePe, GPay, Paytm, etc.).
- * @param baseUpiString Stored value from DB, e.g. `upi://pay?pa=merchant@upi&pn=Name&cu=INR`
- * @param amountRupees Whole rupees (not paise)
+ * @deprecated Personal VPAs are blocked by PhonePe/GPay for unsigned `upi://pay` intents.
+ * Donors should scan QR or copy UPI ID instead. Kept for admin/reference only.
  */
 export function buildUpiPayUri(
   baseUpiString: string | undefined | null,
@@ -182,26 +247,4 @@ export function buildUpiPayUri(
   params.set('tn', tn);
 
   return `${path}?${params.toString()}`;
-}
-
-/** Android package names to bias the system toward opening a specific UPI app (optional). */
-export const UPI_ANDROID_PACKAGES = {
-  PHONEPE: 'com.phonepe.app',
-  GOOGLE_PAY: 'com.google.android.apps.nbu.paisa.user',
-  PAYTM: 'net.one97.paytm',
-} as const;
-
-export type UpiAppTab = keyof typeof UPI_ANDROID_PACKAGES;
-
-/**
- * Returns the href used for Pay / QR tap. We keep plain `upi://pay?…` everywhere: packaged
- * `intent:#Intent;…;package=…` links often do nothing in Chrome, Samsung Internet, and in-app
- * browsers. The OS still shows PhonePe / GPay / Paytm in the chooser for the same link.
- */
-export function resolvePayButtonHref(
-  upiPayHref: string,
-  _preferredApp: UpiAppTab | 'ANY'
-): string {
-  void _preferredApp;
-  return upiPayHref;
 }
